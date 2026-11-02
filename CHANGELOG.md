@@ -1,0 +1,30 @@
+# Changelog
+
+One entry per release, newest first. Each entry names the tag, the date, whether it moves keys (every release does: `ci/kit` is in the key of every adapter-run job, so a kit change re-tests every such job once; see [kit/README.md](kit/README.md) §5.4), the `kit/` tree the tag names (`git rev-parse <tag>^{commit}:kit`), and the adopter's actions in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means the adopter must act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A base image digest bump is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet: nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag names that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
+
+## v1.0.0-rc.1 (2026-11-03)
+
+- The first public release, derived from the author's private reference implementation.
+- The names it carries:
+  - the Docker label on the base and job images:
+    `io.github.aames.quokka-ci-kit.image-key`;
+  - `kit-update`'s default URL: `https://github.com/aames/quokka-ci-kit.git`;
+  - the release tag message's first line: `quokka-ci-kit <tag>`.
+- The runner allowance: the launcher `kit/bin/container` passes the constant
+  `CI=true` into every job container beside `GITHUB_ACTIONS=true`, under the
+  same condition and no other, so a project's allowances that read `CI` apply
+  on the runner; a workstation run carries neither, since `local-ci` unsets
+  `GITHUB_ACTIONS`. `CI` never enters the facts.
+- `CI` is a reserved name (`KIT_RESERVED_ENV` in `kit/lib/keys.sh`): an `env`
+  line naming it is refused by the parser with its line number, by the lint
+  and by the launcher, so a workstation exporting `CI` cannot loosen its own
+  local record's bounds.
+- The proofs: four cases in K-launcher and one in K-manifest (the constant
+  under the runner's variables, its absence without them, its absence through
+  `local-ci`, the refusal of `env ... CI`), and four planted defects in
+  `kit/tests/plants`, each red on the real code.
+- Moves keys: yes (every adapter-run key moves with `ci/kit`).
+- The `kit/` tree this tag names: `16d76d5ca9e10b25652eaaba2bdadd42e844e44d`
+  (`git rev-parse HEAD:kit` on that pull request's branch, equal to
+  `git rev-parse v1.0.0-rc.1^{commit}:kit` once tagged).
+- Adopter's actions: none; this is the first release.

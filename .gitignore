@@ -1,0 +1,7 @@
+# Editor and OS litter. The kit writes nothing into its own tree: its state
+# lives under the adopter's git common directory, never in a working copy.
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/

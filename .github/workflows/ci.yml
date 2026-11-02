@@ -1,0 +1,108 @@
+# THE KIT'S BOOTSTRAP WORKFLOW (kit/README.md §5.7), until the first release
+# candidate exists. A repository cannot vendor a release of itself before one
+# is tagged, so until then this workflow runs the kit's SOURCE checks
+# directly: no schedule, no dispatch, no plan, no records. The adopter shape
+# replaces it after the first release (kit/README.md §5.7).
+#
+# Shellcheck is not here: the runner's package floats, so each builder runs
+# the pinned shellcheck 0.11.0 on its own files and pastes the exit code; the
+# pinned tool arrives with the kit's toolchain image after the first release.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  guards:
+    name: guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # The commit under test: the pull request's head, never the merge ref's
+      # synthetic commit; the push's commit otherwise. No credential is kept.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      # Every bash file of the kit parses. A file is checked when its first
+      # line is a bash shebang (the kit's fences under kit/bin/ are
+      # Python); a run that finds no file fails, because a guard that checked
+      # nothing must never report a pass.
+      - name: bash -n over the kit's shell files
+        run: |
+          set -uo pipefail
+          shopt -s nullglob
+          checked=0 failed=0
+          for f in kit/bin/* kit/lib/* kit/image/enter.sh; do
+            [ -f "$f" ] || continue
+            IFS= read -r first < "$f" || first=""
+            case "$first" in
+              '#!/usr/bin/env bash' | '#!/bin/bash') ;;
+              *) continue ;;
+            esac
+            checked=$((checked + 1))
+            if ! bash -n "$f"; then
+              echo "::error file=${f}::${f} does not parse under bash -n."
+              failed=$((failed + 1))
+            fi
+          done
+          echo "bash -n: ${checked} files checked, ${failed} failed."
+          if [ "$checked" -eq 0 ]; then
+            echo "::error::bash -n found no shell file under kit/, so nothing was checked."
+            exit 1
+          fi
+          [ "$failed" -eq 0 ]
+
+      # The manifest lint on the kit's own fixture manifest. --no-vendor-check
+      # is for fixture manifests and this bootstrap period only (kit/README.md §3.7).
+      - name: The manifest lint on the fixture manifest
+        run: bash kit/bin/check-manifest --file kit/tests/fixture/manifest --no-vendor-check
+
+      # The kit's fence on its own host files: the host allow-list and the
+      # bash 3.2 constructs (kit/README.md §2.2). Standard library only.
+      - name: The host fence on the kit's host files
+        run: python3 kit/bin/check-host kit/
+
+      # The workflow fence over its fixture workflows: green*.yml must pass,
+      # red-w<N>-*.yml must fail on W-<N> (kit/README.md §2.3). It reads YAML, so
+      # PyYAML is installed from Ubuntu's archive when the runner lacks it.
+      - name: The workflow fence on its fixtures
+        run: |
+          set -euo pipefail
+          python3 -c 'import yaml' 2>/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq python3-yaml; }
+          python3 kit/bin/check-workflow --fixture kit/tests/fixture/workflows/
+
+  # THE KIT'S PROOFS (kit/README.md §5.7, §6.2, §6.1): the families that need no
+  # Docker daemon on the runner's own bash and python3, then the families that
+  # do, against the runner's Docker (the base built cold from the source
+  # Dockerfile). A leg the runner cannot run prints NOT RUN and says why.
+  kit:
+    name: kit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: PyYAML for the workflow fence
+        run: python3 -c 'import yaml' 2>/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq python3-yaml; }
+      - name: The families that need no Docker daemon
+        run: bash kit/tests/run
+      - name: The families that need one
+        run: bash kit/tests/image
