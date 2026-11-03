@@ -4,7 +4,7 @@ You have a project on GitHub Actions, and you want CI that skips a job whose exa
 
 ## Faster: kit-init
 
-For a repository you already have, with its tools pinned where they read their version (a `toolchain` line in `go.mod`, an exact `.nvmrc`, an exact `.python-version`). `kit-init` ships from `v1.1.0-rc.1`. You need what the template route needs (below), plus `python3` 3.9 or later. The names `sightings`, `api` and `web` are examples: use your project's name and directories.
+For a repository you already have, with its tools pinned where they read their version (a `toolchain` line in `go.mod`, an exact `.nvmrc`, an exact `.python-version`). `kit-init` ships from `v1.1.0`. You need what the template route needs (below), plus `python3` 3.9 or later. The names `sightings`, `api` and `web` are examples: use your project's name and directories.
 
 ### A. Get the kit and check your machine (2 minutes)
 
@@ -23,7 +23,7 @@ git config commit.gpgsign true
 On `main` with a clean working tree, put the release signer's line from [README.md](README.md#releases-and-the-release-signer) into `ci/KIT-SIGNERS` (make the `ci` directory if it does not exist), then:
 
 ```sh
-bash ../quokka-ci-kit/kit/bin/kit-update v1.1.0-rc.1
+bash ../quokka-ci-kit/kit/bin/kit-update v1.1.0
 git switch -c adopt-kit
 ```
 
@@ -85,11 +85,11 @@ The template copies the files of `main` and nothing else: no records, no tags. G
 
 ## 2. Check that the vendored kit is the real release (2 minutes)
 
-`ci/kit/` arrived with the template. Confirm it is release `v1.0.0`, signed by the key published in [README.md](README.md#releases-and-the-release-signer):
+`ci/kit/` arrived with the template. Confirm it is release `v1.1.0`, signed by the key published in [README.md](README.md#releases-and-the-release-signer):
 
 ```sh
 cut -d' ' -f3- ci/KIT-SIGNERS | ssh-keygen -lf -
-diff <(bash ci/kit/bin/kit-update --verify-only v1.0.0 | head -n 4) <(head -n 4 ci/KIT-VERSION)
+diff <(bash ci/kit/bin/kit-update --verify-only v1.1.0 | head -n 4) <(head -n 4 ci/KIT-VERSION)
 ```
 
 *Done when* the fingerprint reads `SHA256:Vwu8G5Eeo+oc6eRSJtjpGFVVMmUfMNrYpVMR0CfDjX8` and `diff` prints nothing. If either differs, stop. Keep `ci/KIT-SIGNERS` exactly as it is: it names who may sign a kit release, not who may vouch for your tests.
