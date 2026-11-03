@@ -19,8 +19,14 @@
 #   AC-KI-38          no file under the kit has a name a test runner collects by default; fixture sources are
 #                     stored as NAME.fixture and placed as NAME by ki_cp
 #   AC-KI-39          a stack directory with no test file: the scan line, exit 1 and the step before make check
+#   KI-s 1 to 6       the security read's fixes: no write through a link or outside the top, bounded directory
+#                     names, -I, exit 3 when a check did not run, a failed commit named, a detached HEAD refused
 KI_FIX="$KITT_FIX/init"
 KI_SUMS="$KI_FIX/checksums"
+# a run whose checks all hold exits 0 where a python3 with PyYAML runs it, and 3 where none does, because
+# check-workflow then does not run (the security read KI-s, finding 4)
+KI_GREEN=0
+[ -n "$PYYAML" ] || KI_GREEN=3
 
 # init_base: a repository on branch adopt with the kit under test vendored at ci/kit and ci/KIT-VERSION, once.
 init_base() {
@@ -236,7 +242,7 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
   git -C "$IR" branch -D main -q && git -C "$IR" branch -m main
   ki_refuse "refusal: the current branch is the main branch" "kit-init commits the adoption on a branch for its own pull request, and this is main, so nothing was written." --project refuse
   kinit --project refuse --no-commit --no-agent-files
-  kok "and --no-commit does not raise it" 0
+  kok "and --no-commit does not raise it" "$KI_GREEN"
   IR="$work/rf"
   # the checksums: one sentence per value that cannot be had, each naming its URL (AC-KI-7)
   grep -v 'go1.27.3.linux-amd64' "$KI_SUMS" > "$work/sums-nogo"
@@ -267,7 +273,7 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
   ki_refuse "refusal: no git identity for the adoption commit" "git has no user.name or user.email here, and the adoption commit and the signer's principal need them, so nothing was written." --project refuse
   ki_refuse "refusal: no git identity for a signer, even with --no-commit" "git has no user.name or user.email here, and the adoption commit and the signer's principal need them, so nothing was written." --project refuse --no-commit --signer "$work/keys/a.pub"
   kinit --project noid --no-commit --no-agent-files
-  kok "no git identity is not raised with --no-commit and no signer: the run is written" 0
+  kok "no git identity is not raised with --no-commit and no signer: the run is written" "$KI_GREEN"
 
   # a file it would write exists: one sentence per file
   for f in ci/manifest ci/ci-job.sh ci/image/Dockerfile .github/workflows/ci.yml .githooks/pre-push ci/allowed-signers; do
@@ -292,7 +298,7 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
   init_file AGENTS.md '# Agents\n\n<!-- quokka-ci-kit section begin: written by kit-init -->\nold\n'
   ki_refuse "refusal: an AGENTS.md that already holds the section" "AGENTS.md already holds the quokka-ci-kit section, so nothing was written." --project refuse
   kinit --project refuse --no-agent-files --no-commit
-  kok "and --no-agent-files does not raise it" 0
+  kok "and --no-agent-files does not raise it" "$KI_GREEN"
   init_new ex
   init_file CLAUDE.md '<!-- quokka-ci-kit section begin: written by kit-init -->\nold\n'
   ki_refuse "refusal: a CLAUDE.md that already holds the section" "CLAUDE.md already holds the quokka-ci-kit section, so nothing was written." --project refuse
@@ -362,7 +368,7 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
   has "AC-KI-6 (control): and the refusal names the URL and --checksums" "$work/ki.err" "could not be fetched from https://go.dev/dl/?mode=json&include=all"
   has "AC-KI-6 (control): and ends in the sentence" "$work/ki.err" "fetch it yourself and pass it with --checksums, so nothing was written."
   kinit --project netcheck --go api --checksums "$KI_SUMS"
-  kok "AC-KI-6: with --checksums the same run passes through the same closed proxy" 0
+  kok "AC-KI-6: with --checksums the same run passes through the same closed proxy" "$KI_GREEN"
   check "AC-KI-6: the docker shim saw no digest lookup" test -z "$(grep imagetools "$DOCKER_LOG")"
   eq "AC-KI-6: kit-init says where each value came from: the file it was given" "2" "$(grep -c "from $KI_SUMS\$" "$work/ki.out")"
 
@@ -394,7 +400,7 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
   init_commit "existing append targets"
   cp "$IR/Makefile" "$work/orig-Makefile"; cp "$IR/.gitignore" "$work/orig-gitignore"; cp "$IR/AGENTS.md" "$work/orig-agents"; cp "$IR/CLAUDE.md" "$work/orig-claude"
   kinit --project keep --node web --checksums "$KI_SUMS"
-  kok "AC-KI-17: a run over existing append targets" 0
+  kok "AC-KI-17: a run over existing append targets" "$KI_GREEN"
   has "AC-KI-17: .gitignore gained the Node stack's line" "$IR/.gitignore" "node_modules/"
   check "AC-KI-17: the Makefile keeps its 16 CRLF bytes as a prefix" cmp -s -n 16 "$work/orig-Makefile" "$IR/Makefile"
   check "AC-KI-17: .gitignore keeps its bytes (it had no final newline)" cmp -s -n "$(wc -c < "$work/orig-gitignore" | tr -d ' ')" "$work/orig-gitignore" "$IR/.gitignore"
@@ -417,7 +423,7 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
   init_put go api
   init_put node web
   kinit --project rottnest --go api --node web --postgres api --checksums "$KI_SUMS" --no-agent-files
-  kok "AC-KI-20: the golden run on the example's shape (rottnest, api, web, Postgres)" 0
+  kok "AC-KI-20: the golden run on the example's shape (rottnest, api, web, Postgres)" "$KI_GREEN"
   for f in ci/manifest ci/ci-job.sh ci/image/Dockerfile .github/workflows/ci.yml Makefile ci/allowed-signers; do
     # the example's signers file also holds the signer it added after its landing (docs/kit-init.md R-1, section 3.8)
     case "$f" in
@@ -462,7 +468,7 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
       dot) ki_cp "$KI_FIX/src/dot" "$IR"; init_commit dot; set -- --project dotted --go . ;;
     esac
     kinit "$@" --checksums "$KI_SUMS"
-    kok "AC-KI-30 [$shape]: kit-init writes and commits" 0
+    kok "AC-KI-30 [$shape]: kit-init writes and commits" "$KI_GREEN"
     check "AC-KI-21 [$shape]: the adoption is one commit with the kit's message and a clean tree" test "$(git -C "$IR" log -1 --format=%s)" = "ci: adopt quokka-ci-kit v1.1.0-rc.1" -a -z "$(git -C "$IR" status --porcelain)"
     has "AC-KI-22 [$shape]: it prints check-manifest's exit code" "$work/ki.out" "check-manifest: exit 0"
     has "AC-KI-22 [$shape]: it prints check-escaping-reads' exit code" "$work/ki.out" "check-escaping-reads: exit 0"
@@ -568,7 +574,7 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
   init_new cron
   git -C "$IR" config user.email signer@fixture
   kinit --project crony --cron '5 4 * * 3' --signer "$work/keys/a.pub"
-  kok "AC-KI-12: a run with --cron and --signer" 0
+  kok "AC-KI-12: a run with --cron and --signer" "$KI_GREEN"
   has "AC-KI-12: the manifest's weekly-cron is the flag's" "$IR/ci/manifest" "weekly-cron 5 4 * * 3"
   has "AC-KI-12: and the workflow's schedule is the same five words" "$IR/.github/workflows/ci.yml" 'cron: "5 4 * * 3"'
   has "AC-KI-23: the last step names the schedule's day" "$work/ki.out" "Read the summary of the first scheduled run on its day: Wednesday 04:05 UTC."
@@ -583,17 +589,117 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
   # AC-KI-18: --no-agent-files writes neither; --agent-files-only writes only the two, uncommitted
   init_new agent
   kinit --project agentic --no-agent-files
-  kok "AC-KI-18: --no-agent-files" 0
+  kok "AC-KI-18: --no-agent-files" "$KI_GREEN"
   check "AC-KI-18: neither AGENTS.md nor CLAUDE.md exists" test ! -e "$IR/AGENTS.md" -a ! -e "$IR/CLAUDE.md"
   before="$(git -C "$IR" rev-parse HEAD)"
   kinit --agent-files-only
-  kok "AC-KI-18: --agent-files-only on the adopted repository" 0
+  kok "AC-KI-18: --agent-files-only on the adopted repository" "$KI_GREEN"
   eq "AC-KI-18: it writes only the two files" "?? AGENTS.md
 ?? CLAUDE.md" "$(git -C "$IR" status --porcelain)"
   eq "AC-KI-18: and commits nothing" "$before" "$(git -C "$IR" rev-parse HEAD)"
   has "AC-KI-18: the values came from the committed manifest: its adapter" "$IR/AGENTS.md" "\`ci/ci-job.sh\` is each job's one verdict script"
   has "AC-KI-18: its check command" "$IR/CLAUDE.md" "Run \`make check\` before you push."
   hasnt "AC-KI-18: no token is left" "$IR/AGENTS.md" "@@"
+
+  # ------------------------------------------------------------------------------------------------
+  # The security read KI-s, findings 1 to 6 (kit-init 3c): each red once against the kit-init before it.
+  # ------------------------------------------------------------------------------------------------
+  # Finding 1: no write through a symbolic link or outside the top; the outside files stay as they were
+  rm -rf "$work/outside"; mkdir -p "$work/outside/gh"
+  printf 'outside claude\n' > "$work/outside/x"; printf 'outside make\n' > "$work/outside/m"
+  cp "$work/outside/x" "$work/outside-x.orig"; cp "$work/outside/m" "$work/outside-m.orig"
+  init_new sym1
+  ln -s ../outside/x "$IR/CLAUDE.md"; init_commit "a CLAUDE.md link out of the working copy"
+  ki_refuse "KI-s 1: a committed CLAUDE.md that links out of the working copy" "CLAUDE.md is a symbolic link, and kit-init writes no file through one, so nothing was written." --project refuse
+  check "KI-s 1: and the file it links to is untouched" cmp -s "$work/outside-x.orig" "$work/outside/x"
+  init_new sym2
+  ln -s ../outside/m "$IR/Makefile"; init_commit "a Makefile link out of the working copy"
+  ki_refuse "KI-s 1: a committed Makefile that links out of the working copy" "Makefile is a symbolic link, and kit-init writes no file through one, so nothing was written." --project refuse
+  check "KI-s 1: and the Makefile it links to is untouched" cmp -s "$work/outside-m.orig" "$work/outside/m"
+  init_new sym3
+  ln -s ../outside/gh "$IR/.github"; init_commit "a .github directory link out of the working copy"
+  ki_refuse "KI-s 1: a committed .github that is a directory link out of the working copy" ".github is a symbolic link, and kit-init writes no file through one, so nothing was written." --project refuse
+  eq "KI-s 1: and nothing was written in the directory it links to" "" "$(ls -A "$work/outside/gh")"
+  init_new sym4
+  ln -s ../outside/x "$IR/CLAUDE.md"; ln -s ../outside/m "$IR/Makefile"; ln -s ../outside/gh "$IR/.github"
+  init_commit "all three links"
+  ki_refuse "KI-s 1: all three links at once" "CLAUDE.md is a symbolic link" --project refuse
+  eq "KI-s 1: one sentence for each link" "3" "$(grep -c ' is a symbolic link, and kit-init writes no file through one, so nothing was written.$' "$work/ki.err")"
+  check "KI-s 1: and every outside file is as it was" cmp -s "$work/outside-x.orig" "$work/outside/x"
+  check "KI-s 1: the outside Makefile too" cmp -s "$work/outside-m.orig" "$work/outside/m"
+  init_new sym5
+  printf '# Agents\n' > "$IR/AGENTS.md"; ln -s AGENTS.md "$IR/CLAUDE.md"; init_commit "a link inside the working copy"
+  ki_refuse "KI-s 1: a link that stays inside the working copy is refused too" "CLAUDE.md is a symbolic link, and kit-init writes no file through one, so nothing was written." --project refuse
+  init_new sym6
+  kinit --project symsix --no-agent-files
+  kok "KI-s 1 (setup): an adoption with no agent files" "$KI_GREEN"
+  ln -s ../outside/x "$IR/CLAUDE.md"
+  ki_refuse "KI-s 1: --agent-files-only refuses a CLAUDE.md link" "CLAUDE.md is a symbolic link, and kit-init writes no file through one, so nothing was written." --agent-files-only
+  check "KI-s 1: and the file it links to is untouched" cmp -s "$work/outside-x.orig" "$work/outside/x"
+
+  # Finding 2: a directory value reaches no generated file outside the bounded shape
+  init_new bound
+  d='api$(touch${IFS}PWNED)'
+  ki_cp "$KI_FIX/src/go" "$IR/$d"; init_commit "a directory named with a substitution"
+  ki_refuse "KI-s 2: a directory named with a command substitution" "$d is not a directory name kit-init writes into a generated file (a directory is ., or letters, digits and . _ / - starting with a letter or digit, with no .. segment), so nothing was written." --project refuse --go "$d:api" --checksums "$KI_SUMS"
+  check "KI-s 2: no ci/ci-job.sh carries it and nothing ran it" test ! -e "$IR/ci/ci-job.sh" -a ! -e "$IR/PWNED"
+  init_new bound2
+  d="api'q"
+  ki_cp "$KI_FIX/src/go" "$IR/$d"; init_commit "a directory named with a quote"
+  ki_refuse "KI-s 2: a directory named with a quote" "$d is not a directory name kit-init writes into a generated file (a directory is ., or letters" --project refuse --go "$d:api" --checksums "$KI_SUMS"
+
+  # Finding 3: the generator's own python runs isolated, so a yaml.py at the top is not imported
+  init_new isol
+  init_put go api
+  printf 'open("YAML-IMPORTED", "w").close()\n' > "$IR/yaml.py"; init_commit "a yaml.py at the top"
+  kinit --project isol --go api --checksums "$KI_SUMS"
+  kok "KI-s 3: a run with a yaml.py at the repository's top" "$KI_GREEN"
+  check "KI-s 3: the yaml.py was never imported" test ! -e "$IR/YAML-IMPORTED"
+  eq "KI-s 3: and nothing was compiled from it" "" "$(ls "$IR/__pycache__" 2> /dev/null)"
+
+  # Finding 4: a check that did not run is exit 3, said, with how to run it
+  rm -rf "$work/venv-noyaml"
+  "${PYYAML:-python3}" -m venv --without-pip "$work/venv-noyaml"
+  rc=0; "$work/venv-noyaml/bin/python" -I -c 'import yaml' > /dev/null 2>&1 || rc=$?
+  check "KI-s 4 (control): the venv's python cannot import yaml" test "$rc" -ne 0
+  init_new noyaml
+  init_put go api
+  f="$PYYAML"; PYYAML="$work/venv-noyaml/bin/python"
+  kinit --project noyaml --go api --checksums "$KI_SUMS"
+  PYYAML="$f"
+  kok "KI-s 4: with no PyYAML, check-workflow does not run and kit-init exits 3" 3
+  has "KI-s 4: the NOT RUN line says how to run it" "$work/ki.out" "venv-noyaml/bin/python) has no PyYAML; install it and run python3 ci/kit/bin/check-workflow yourself; CI's always-on job runs it too."
+  has "KI-s 4: and opens with NOT RUN, naming the python3 it asked" "$work/ki.out" "NOT RUN check-workflow: this python3 ("
+  has "KI-s 4: and the closing lines say so" "$work/ki.out" "check-workflow did not run, so this run proves nothing about it: install PyYAML for python3 and run python3 ci/kit/bin/check-workflow before you push."
+  check "KI-s 4: the files are still written and committed" test "$(git -C "$IR" log -1 --format=%s)" = "ci: adopt quokka-ci-kit v1.1.0-rc.1"
+
+  # Finding 5: a failed commit is exit 1 and one line naming which step failed and what it said
+  init_new cfail
+  init_put go api
+  mkdir -p "$IR/.git/hooks"
+  printf '#!/bin/sh\necho "the hook refuses this commit" >&2\nexit 1\n' > "$IR/.git/hooks/pre-commit"; chmod +x "$IR/.git/hooks/pre-commit"
+  before="$(git -C "$IR" rev-parse HEAD)"
+  kinit --project cfail --go api --checksums "$KI_SUMS"
+  kok "KI-s 5: a commit that fails is exit 1" 1
+  has "KI-s 5: and one line names it" "$work/ki.out" "The files are written but the commit failed (git commit exited 1: the hook refuses this commit), so nothing is committed; commit them yourself, then run the checks below."
+  eq "KI-s 5: and nothing was committed" "$before" "$(git -C "$IR" rev-parse HEAD)"
+
+  # Finding 6: a detached HEAD is refused; the guess of main is said when origin/HEAD is missing
+  init_new det
+  git -C "$IR" checkout -q --detach
+  ki_refuse "KI-s 6: a detached HEAD" "HEAD is detached, and kit-init commits on a branch for its own pull request, so nothing was written." --project refuse
+  kinit --project det --no-commit --no-agent-files
+  kok "KI-s 6: --no-commit on a detached HEAD commits nothing, so it is not refused" "$KI_GREEN"
+  init_new guess
+  kinit --project guess --no-agent-files
+  kok "KI-s 6: a run with no origin/HEAD" "$KI_GREEN"
+  has "KI-s 6: the closing lines say the main branch was guessed, and how to set origin/HEAD" "$work/ki.out" "kit-init took the main branch to be main, because origin/HEAD is not set here. If it is another branch, run git remote set-head origin -a"
+  init_new guessed
+  git -C "$IR" update-ref refs/remotes/origin/main HEAD
+  git -C "$IR" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+  kinit --project guessed --no-agent-files
+  kok "KI-s 6 (control): a run with origin/HEAD set" "$KI_GREEN"
+  hasnt "KI-s 6 (control): says no guess" "$work/ki.out" "kit-init took the main branch to be main"
 
   # ------------------------------------------------------------------------------------------------
   # AC-KI-27: the kit repository's workflow fails when its README or the guide for adopting with an agent

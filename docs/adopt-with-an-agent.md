@@ -79,7 +79,7 @@ Clone the kit outside this repository, for example `git clone https://github.com
    ```
 
    The project name is 2 to 16 lower-case letters and digits, starting with a letter.
-3. Read what it printed. Exit 2 is a refusal and nothing was written: its one sentence names the cause. When the fix is a change to the project's own files (a pin to add, an exact version for a range), ask the person before you make it, then run `kit-init` again. Exit 1 means it wrote and committed the files and a check found something: the findings are printed above their exit codes. Exit 0 means every check held.
+3. Read what it printed. Exit 2 is a refusal and nothing was written: its one sentence names the cause. When the fix is a change to the project's own files (a pin to add, an exact version for a range), ask the person before you make it, then run `kit-init` again. Exit 0 means every check held. Exit 1 means the files were written and committed and at least one check found something (the findings are printed above their exit codes), or the commit failed and the output says which. Exit 3 means a check did not run: the output names it and how to run it, so run it before you go on.
 4. Read every file it wrote. For each stub arm, write the job's checks into `ci/ci-job.sh` (kit/README.md section 4.1) and its toolchain into `ci/image/Dockerfile`, copying the shape of the arms it wrote whole, then commit.
 
 *Done when* `git log -1 --format=%s` reads `ci: adopt quokka-ci-kit <tag>` (or your later commit), `git status` shows nothing, and no stub arm is left.

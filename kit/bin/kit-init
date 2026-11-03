@@ -23,8 +23,14 @@ THE HOST RULE (docs/kit-init.md section 8): standard library only; the
 source parses as Python 3.9; every subprocess is a list whose first element
 is "git", "docker", "ssh-keygen", "bash" or sys.executable, never a shell.
 
-EXIT: 0 written and committed, every lint held; 1 written, and a lint after
-writing found something (the files stay); 2 refused, nothing was written.
+EXIT: 0 written and committed, every check held; 1 written, and a check after
+writing found something or the commit failed (the files stay; the output says
+which); 2 refused, nothing was written; 3 written (and committed unless
+--no-commit), and a check did not run (the output names it and how to run it).
+
+No file is written through a symbolic link or outside the top of the working
+copy, and every directory or file name a generated file carries is bounded to
+letters, digits and . _ / - (the security read KI-s, findings 1 and 2).
 """
 
 import base64
@@ -59,6 +65,11 @@ NAME_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 PROJECT_RE = re.compile(r"^[a-z][a-z0-9]{1,15}$")
 CRON_WORD_RE = re.compile(r"^[A-Za-z0-9*,/-]+$")
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+# a directory or file name that reaches a generated file (the security read KI-s, finding 2)
+BOUNDED_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+BOUNDED_SHAPE = ("., or letters, digits and . _ / - starting with a letter or digit, with no .. segment")
+# the kit's own file names a pin file or lockfile may end in; at the top (.) these start with a dot
+KIT_FILE_NAMES = ("go.mod", "go.sum", ".nvmrc", ".node-version", "package-lock.json", ".python-version")
 KEY_TYPES = ("ssh-ed25519", "ssh-rsa", "ssh-dss", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384",
              "ecdsa-sha2-nistp521", "sk-ssh-ed25519@openssh.com", "sk-ecdsa-sha2-nistp256@openssh.com")
 
@@ -123,9 +134,11 @@ def bash(*args, capture=False):
 
 
 def python(*args, quiet=False):
+    """sys.executable in isolated mode (-I): neither the current directory nor PYTHON* variables reach
+    sys.path, so a yaml.py at the repository's top is never imported (the security read KI-s, finding 3)."""
     sys.stdout.flush()
     out = subprocess.DEVNULL if quiet else None
-    return subprocess.run([sys.executable, *args], stdout=out, stderr=out)
+    return subprocess.run([sys.executable, "-I", *args], stdout=out, stderr=out)
 
 
 def git_value(*args):
@@ -279,6 +292,17 @@ def path_problem(d):
     return None
 
 
+def bounded(value):
+    """True when the value may reach a generated file: ., or BOUNDED_RE with no empty, . or .. segment, or such
+    a directory (or .) followed by one of the kit's own file names (KI-s, finding 2)."""
+    if value == ".":
+        return True
+    if BOUNDED_RE.fullmatch(value) and not any(seg in ("", ".", "..") for seg in value.split("/")):
+        return True
+    head, name = os.path.split(value)
+    return name in KIT_FILE_NAMES and bounded(head or ".")
+
+
 def census_job(stack, spec, refusals):
     """One stack flag: its directory, job, pin and the runner kit-init knows."""
     directory, _, job = spec.partition(":")
@@ -286,6 +310,10 @@ def census_job(stack, spec, refusals):
     problem = path_problem(directory)
     if problem:
         refusals.append("%s is not a directory the manifest accepts (it holds %s)%s" % (directory, problem, TAIL))
+        return None
+    if not bounded(directory):
+        refusals.append("%s is not a directory name kit-init writes into a generated file (a directory is %s)%s"
+                        % (directory, BOUNDED_SHAPE, TAIL))
         return None
     if not job:
         job = stack if directory == "." else directory.replace("/", "-")
@@ -375,6 +403,12 @@ def census(opts, refusals):
         j = census_job(stack, spec, refusals)
         if j:
             jobs.append(j)
+    for j in jobs:
+        # every value a template carries, read from the repository or built from the directory (KI-s, finding 2)
+        for value in (j["pin_file"], j["lockfile"], j["scan_dir"], j["requirements"]):
+            if value is not None and not bounded(value):
+                refusals.append("%s is not a file name kit-init writes into a generated file (a name is %s)%s"
+                                % (value, BOUNDED_SHAPE, TAIL))
     names = {}
     for j in jobs:
         name = j["job"]
@@ -760,15 +794,17 @@ def write_all(plan):
                 dirs.append(d)
             data = text if isinstance(text, bytes) else text.encode("utf-8")
             if original is None:
-                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
                 created.append(path)
                 with os.fdopen(fd, "wb") as f:
                     f.write(data)
-                os.chmod(path, mode)
+                    os.fchmod(f.fileno(), mode)
             else:
-                size = os.stat(path).st_size
-                restored.append((path, size))
-                with open(path, "ab") as f:
+                # O_NOFOLLOW: an append never goes through a symbolic link (KI-s, finding 1)
+                fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_NOFOLLOW)
+                with os.fdopen(fd, "ab") as f:
+                    size = os.fstat(f.fileno()).st_size
+                    restored.append((path, size))
                     f.write(data[len(original.encode("utf-8")):])
     except BaseException as e:
         for path in created:
@@ -778,8 +814,11 @@ def write_all(plan):
                 pass
         for path, size in restored:
             try:
-                with open(path, "r+b") as f:
-                    f.truncate(size)
+                fd = os.open(path, os.O_WRONLY | os.O_NOFOLLOW)
+                try:
+                    os.ftruncate(fd, size)
+                finally:
+                    os.close(fd)
             except OSError:
                 pass
         for d in reversed(dirs):
@@ -841,6 +880,36 @@ def preflight_repo():
     return os.path.realpath(os.path.join(top, common)), tag
 
 
+def target_refusals(paths, top):
+    """KI-s, finding 1: before anything is written, refuse an output target, or any directory above one, that is
+    a symbolic link, or whose real path lies outside the top of the working copy. One sentence per path."""
+    out, seen = [], set()
+    root = os.path.realpath(top)
+    for path in paths:
+        parts = path.split("/")
+        for k in range(1, len(parts) + 1):
+            prefix = "/".join(parts[:k])
+            if prefix in seen:
+                break
+            if os.path.islink(os.path.join(top, prefix)):
+                seen.add(prefix)
+                out.append("%s is a symbolic link, and kit-init writes no file through one%s" % (prefix, TAIL))
+                break
+        else:
+            real = os.path.realpath(os.path.join(top, path))
+            if real != root and not real.startswith(root + os.sep) and path not in seen:
+                seen.add(path)
+                out.append("%s lies outside the top of this working copy (%s)%s" % (path, real, TAIL))
+    return out
+
+
+def refuse_targets(plan):
+    """The plan's paths through target_refusals, at the top (preflight_repo made the working directory it)."""
+    refusals = target_refusals([p for p, _t, _m, _o in plan], os.getcwd())
+    if refusals:
+        raise Refused(refusals)
+
+
 def section_refusals(skip):
     out = []
     if skip:
@@ -880,6 +949,7 @@ def agent_files_only():
             "CHECK": "\t".join(d["check-command"]), "MAIN": d["main-branch"][0]}
     plan = agent_plan(base, jobs)
     check_tokens(plan)
+    refuse_targets(plan)
     write_all(plan)
     for path, _t, _m, original in plan:
         print("%s %s" % ("appended" if original else "wrote", path))
@@ -936,7 +1006,9 @@ def main(argv):
     branch = git_value("symbolic-ref", "-q", "--short", "HEAD")
     origin_head = git_value("symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     main_branch = origin_head.split("/", 1)[1] if origin_head.startswith("origin/") else "main"
-    if not opts["no_commit"] and branch == main_branch:
+    if not opts["no_commit"] and not branch:
+        refusals.append("HEAD is detached, and kit-init commits on a branch for its own pull request" + TAIL)
+    elif not opts["no_commit"] and branch == main_branch:
         refusals.append("kit-init commits the adoption on a branch for its own pull request, and this is %s%s"
                         % (main_branch, TAIL))
     key = signer_key(opts["signer"], refusals) if opts["signer"] else None
@@ -959,8 +1031,8 @@ def main(argv):
     shim_path = "ci/kit/hooks/pre-push.shim"
     with open(shim_path, "rb") as f:
         shim = f.read()
-    ctx = {"project": project, "main": main_branch, "cron": cron, "jobs": jobs, "first": first, "values": values,
-           "digests": digests, "shim": shim}
+    ctx = {"project": project, "main": main_branch, "main_guessed": not origin_head.startswith("origin/"),
+           "cron": cron, "jobs": jobs, "first": first, "values": values, "digests": digests, "shim": shim}
     files = render_all(ctx)
     base = {"PROJECT": project, "MAIN": main_branch, "ADAPTER": ADAPTER, "WORKFLOW": WORKFLOW, "SIGNERS": SIGNERS,
             "CHECK": CHECK}
@@ -981,6 +1053,7 @@ def main(argv):
     if not opts["no_agent_files"]:
         plan.extend(agent_plan(base, local_jobs))
     check_tokens(plan)
+    refuse_targets(plan)
 
     init = InitDir(common, project)
     try:
@@ -1010,12 +1083,18 @@ def main(argv):
             for p in ("ci/kit", "ci/KIT-VERSION", "ci/KIT-SIGNERS"):
                 if any(ln[3:].rstrip("/") == p or ln[3:].startswith(p + "/") for ln in vend.splitlines()):
                     paths.append(p)
-            add = git("add", "--", *paths)
-            done = add.returncode == 0 and git("commit", "-q", "-m", COMMIT_MESSAGE % kit_tag, "--", *paths).returncode == 0
-            if done:
+            step = git("add", "--", *paths)
+            which = "git add"
+            if step.returncode == 0:
+                step = git("commit", "-q", "-m", COMMIT_MESSAGE % kit_tag, "--", *paths)
+                which = "git commit"
+            if step.returncode == 0:
                 print("committed %s: %s" % (git_value("rev-parse", "--short", "HEAD"), COMMIT_MESSAGE % kit_tag))
             else:
-                print("The files are written but the commit failed; commit them yourself, then run the checks below.")
+                said = next((ln.strip() for ln in (step.stderr + step.stdout).splitlines() if ln.strip()),
+                            "no message")
+                print("The files are written but the commit failed (%s exited %d: %s), so nothing is committed; "
+                      "commit them yourself, then run the checks below." % (which, step.returncode, said))
                 rc = 1
         print()
         print("The checks, each exit code as it stands:")
@@ -1029,10 +1108,14 @@ def main(argv):
         checks += [("check-workflow", ["ci/kit/bin/check-workflow"] + extra, "python"),
                    ("check-escaping-reads", ["ci/kit/bin/check-escaping-reads"] + extra, "python"),
                    ("check-prereqs", ["ci/kit/bin/check-prereqs"], "bash")]
-        codes = {}
+        codes, not_run = {}, []
         for name, args, runner in checks:
             if name == "check-workflow" and not has_yaml:
-                print("NOT RUN check-workflow: this python3 has no PyYAML; CI's always-on job runs it.")
+                # exit 3, never 0, when a check did not run (KI-s, finding 4)
+                print("NOT RUN check-workflow: this python3 (%s) has no PyYAML; install it and run python3 "
+                      "ci/kit/bin/check-workflow%s yourself; CI's always-on job runs it too."
+                      % (sys.executable, "".join(" " + a for a in extra)))
+                not_run.append(name)
                 continue
             code = (bash(*args) if runner == "bash" else python(*args)).returncode
             codes[name] = code
@@ -1042,13 +1125,16 @@ def main(argv):
         if signer_line:
             init.file("allowed-signers.next", signer_line + "\n")
         no_tests = codes.get("check-manifest") == 0 and codes.get("check-escaping-reads") == 2
-        closing(ctx, jobs, branch, signer_line, fingerprint, os.path.join(init.path, "allowed-signers.next"), no_tests)
+        closing(ctx, jobs, branch, signer_line, fingerprint, os.path.join(init.path, "allowed-signers.next"), no_tests,
+                not_run, extra)
+        if rc == 0 and not_run:
+            rc = 3
         return rc
     finally:
         init.close()
 
 
-def closing(ctx, jobs, branch, signer_line, fingerprint, next_path, no_tests=False):
+def closing(ctx, jobs, branch, signer_line, fingerprint, next_path, no_tests=False, not_run=(), extra=()):
     stack_jobs = [j["job"] for j in jobs]
     real = [j["job"] for j in jobs if not j["stub"]]
     stubs = [j["job"] for j in jobs if j["stub"]]
@@ -1092,6 +1178,14 @@ def closing(ctx, jobs, branch, signer_line, fingerprint, next_path, no_tests=Fal
                      "file, and ssh-keygen -lf <your public key file> prints the fingerprint to confirm out of band.")
     steps.append("Read the summary of the first scheduled run on its day: %s." % cron_day(ctx["cron"]))
     print()
+    if ctx.get("main_guessed"):
+        # KI-s, finding 6: the guess is said, and how to make it an answer
+        print("kit-init took the main branch to be main, because origin/HEAD is not set here. If it is another "
+              "branch, run git remote set-head origin -a, reset this branch to before the adoption commit and run "
+              "kit-init again.")
+    for name in not_run:
+        print("%s did not run, so this run proves nothing about it: install PyYAML for python3 and run python3 "
+              "ci/kit/bin/%s%s before you push." % (name, name, "".join(" " + a for a in extra)))
     print("Next, in order:")
     for n, s in enumerate(steps, 1):
         print("%2d. %s" % (n, s))
