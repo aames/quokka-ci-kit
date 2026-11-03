@@ -2,6 +2,8 @@
 
 Stop paying CI to re-run tests you already ran: a vendored kit for GitHub Actions that skips a job when its exact content already passed, in CI or, signed, on your own machine.
 
+**Start here.** Manual, from the template, about 30 minutes: [QUICKSTART.md](QUICKSTART.md). With an AI agent (Claude Code, Codex or another): [With an agent](#with-an-agent). Already have a repository: [kit/README.md §7](kit/README.md).
+
 ```text
         .-"""-.
        / .===. \       quokka-ci-kit
@@ -110,19 +112,19 @@ It is not for you if a job must test the host itself (its kernel, its sockets) a
 
 ## Quick start
 
-The example repository, [quokka-ci-kit-example](https://github.com/aames/quokka-ci-kit-example), is every step below done once for a small Go and web project that records quokka sightings on Rottnest Island. Read its files beside these steps, and copy and rename them rather than writing from nothing. Each step ends with what is true when it is done.
+[QUICKSTART.md](QUICKSTART.md) takes you from nothing to green CI in about 30 minutes, in nine numbered steps. It starts from the example repository, [quokka-ci-kit-example](https://github.com/aames/quokka-ci-kit-example), a small Go and web project that records quokka sightings on Rottnest Island, with the kit vendored and every file written. On that page, click **Use this template**, then follow QUICKSTART.md.
 
-1. **Check the host settings.** Protect `main`: pull requests only, signed commits required. Push a scratch ref such as `refs/ci/test` and confirm no workflow run starts. Open a scratch pull request whose required job is skipped by its `if:` and confirm it shows as passing. Confirm your Actions settings do not cap the token below `contents: write` and `checks: read`. *Done when* each of the four is read back on the host.
-2. **Vendor the kit.** Put the release signer's line from [Releases and the release signer](#releases-and-the-release-signer) in `ci/KIT-SIGNERS`. At the top of your working copy, on `main`, run `bash <clone of this repository>/kit/bin/kit-update <tag>`. It verifies that the tag is a signed release, prints the fingerprint of each `ci/KIT-SIGNERS` line, and writes `ci/kit/` and `ci/KIT-VERSION`. *Done when* the printed fingerprint equals the published one (stop if it does not) and the two paths exist.
-3. **Write your files, on a new branch.** `ci/manifest`, starting from the example's ([kit/README.md](kit/README.md) §3); `.githooks/pre-push`, copied from `ci/kit/hooks/pre-push.shim`; the verdict script, one arm per job ending in a counts line (the example's `ci/ci-job.sh`); `ci/image/Dockerfile` on the kit's base; a `Makefile` whose `check` target runs `bash ci/kit/bin/local-ci run --commit HEAD <your local jobs>`; `.github/workflows/ci.yml`, copied from the example's and renamed ([kit/README.md](kit/README.md) §5.5 gives it job by job); and `ci/allowed-signers` holding nothing but a comment line, so the file exists and trusts nobody yet. *Done when* every file is in your working copy.
-4. **Commit, then check.** The checks read the commit, not your working copy, so commit first. Run `bash ci/kit/bin/check-manifest`, then `make check` once, then `bash ci/kit/bin/check-adapter <job>` for each local job but the kit job, `python3 ci/kit/bin/check-workflow` and `python3 ci/kit/bin/check-escaping-reads`. *Done when* each exits 0.
-5. **Write the residual into your own documentation**, from [How trust works](#how-trust-works). *Done when* it is committed on the branch.
-6. **Land it.** Merge `origin/main` into the branch, push with `--no-verify`, and open the pull request saying that its local records are refused until a signer is on `main`. *Done when* its run has executed every job in CI once, written the first green records, and merged.
-7. **Add yourself as a signer.** Your line, `<your git user.email> namespaces="git" <key type> <public key>`, in `ci/allowed-signers`, in a pull request of its own. Its run executes on CI every job whose key covers that file, because `main`'s copy still trusts nobody until this merges. *Done when* it has merged.
-8. **Turn the hook on.** `git config core.hooksPath .githooks`, `git config gpg.format ssh` and `git config user.signingkey <your public key>`. *Done when* `bash ci/kit/bin/check-prereqs` exits 0, `make check` passes, and you have read the facts it wrote.
-9. **Push through the hook.** *Done when* the next pull request's summary shows `local: <your email>` beside each tested job.
+To adopt the kit in a repository you already have, the full procedure, with what proves each step done, is [kit/README.md](kit/README.md) §7.
 
-The full procedure, with what proves each step done, is [kit/README.md](kit/README.md) §7.
+## With an agent
+
+An AI coding agent can do the quick start for you, and it asks you before anything that needs your word: the release fingerprint, the push, the branch protection.
+
+- **Any agent** (Claude Code, Codex or another): paste [docs/adopt-with-an-agent.md](docs/adopt-with-an-agent.md) into a session in your repository.
+- **Claude Code**: install the skill, [claude/skills/quokka-adopt](claude/skills/quokka-adopt/README.md), and ask it to adopt the kit.
+- **Codex**: add one line to your `AGENTS.md`: `To adopt quokka-ci-kit or add a CI job, fetch https://raw.githubusercontent.com/aames/quokka-ci-kit/main/docs/adopt-with-an-agent.md and follow it.`
+
+Once adopted, [docs/agents-section.md](docs/agents-section.md) is the section that tells an agent working in your repository how its CI works. `kit-init` ([docs/kit-init.md](docs/kit-init.md)) will write the files and that section for you once it is released, leaving the agent to check its work.
 
 ## How trust works
 
@@ -150,7 +152,7 @@ Your workstation pays instead: a cold job image build (several minutes, once per
 
 ## Releases and the release signer
 
-No release is tagged yet. The first will be `v1.0.0-rc.1`; until it exists `kit-update` has nothing it will accept, so nothing can be vendored. A release is a signed, annotated tag on this repository's protected `main` whose message's first line is `quokka-ci-kit <tag>` ([CONTRIBUTING.md](CONTRIBUTING.md) has how one is cut), and its [CHANGELOG.md](CHANGELOG.md) entry names the `kit/` tree it vendors.
+The current release is `v1.0.0`. A release is a signed, annotated tag on this repository's protected `main` whose message's first line is `quokka-ci-kit <tag>` ([CONTRIBUTING.md](CONTRIBUTING.md) has how one is cut), and its [CHANGELOG.md](CHANGELOG.md) entry names the `kit/` tree it vendors.
 
 The release signer's line for your `ci/KIT-SIGNERS`, in OpenSSH allowed-signers format:
 
@@ -164,7 +166,7 @@ Its fingerprint, as `ssh-keygen -lf` prints it:
 256 SHA256:Vwu8G5Eeo+oc6eRSJtjpGFVVMmUfMNrYpVMR0CfDjX8 no comment (ED25519)
 ```
 
-At your first vendoring `kit-update` prints the fingerprint of each line of your `ci/KIT-SIGNERS`. Compare it with the one above as GitHub shows this page at the release's tag and, for a channel apart from the clone, ask through this repository's issues. If the two differ, do not vendor. The example repository's `ci/KIT-SIGNERS` carries a development key, not the release signer's, until it vendors the first release.
+At your first vendoring `kit-update` prints the fingerprint of each line of your `ci/KIT-SIGNERS`. Compare it with the one above as GitHub shows this page at the release's tag and, for a channel apart from the clone, ask through this repository's issues. If the two differ, do not vendor. The example repository vendors this release, and its `ci/KIT-SIGNERS` carries this line.
 
 ## Layout of this repository
 
@@ -175,6 +177,8 @@ CHANGELOG.md         one entry per release: moves keys, the kit/ tree hash, your
 SECURITY.md          how to report a vulnerability, and what the kit promises
 CONTRIBUTING.md      running the kit's tests, the bash 3.2 rule, cutting a release
 LICENSE              MIT
+docs/                adopting with an agent: the prompt and the AGENTS.md section
+claude/skills/       the Claude Code skill that points at the prompt
 kit/                 what you vendor at ci/kit/
   README.md          the command, manifest and adapter reference
   bin/               plan, record, prune, local-ci, pre-push, container, keys, kit-update, the checks
