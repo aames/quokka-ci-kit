@@ -19,6 +19,24 @@ One entry per release, newest first. Each entry names the tag, the date, whether
 - Changed: no file under `kit/` has a name a test runner or compiler collects
   from a repository's top. The kit's own fixture sources end in `.fixture`, so a
   project whose tests run from its top never runs the kit's.
+- Fixed: `kit-init` writes no file through a symbolic link. A file it would
+  write or append to that is a link, or sits under one, is refused, and nothing
+  is written.
+- Fixed: every directory and file name `kit-init` puts into a generated file is
+  letters, digits and `. _ / -`, so no name can carry shell or quotes into the
+  verdict script, the job image or the workflow.
+- Fixed: `kit-init` runs its own `python3` in isolated mode (`-I`), so a
+  `yaml.py` at the top of the repository is never imported.
+- Fixed: `kit-init` exits 3, not 0, when a check did not run (the workflow
+  fence without PyYAML), and says which check and how to run it.
+- Fixed: when the commit fails, `kit-init` says so in one line with git's exit
+  code and message, and exits 1.
+- Fixed: `kit-init` refuses a detached HEAD when it would commit, and says when
+  it guessed the main branch because `origin/HEAD` is not set.
+- Reviewed: a security read of `kit-init` before this release, recorded in
+  `docs/reviews/security-kit-init-2026-11-03.md`: one medium and five low
+  findings, all fixed above, and six notes left for later releases
+  (docs/kit-init.md, Revision 4).
 - Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
   formula, the plan's sentences, `check-host`'s file list and allow-list; every
   check but those two.

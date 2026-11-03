@@ -8,7 +8,91 @@
     ____ooo___ooo_____|______|____
 ```
 
-Status: specification, built, corrected and proven; the proofs ratified on 2026-11-03 with four defects ruled into one last code piece, 3b, that lands before `v1.1.0-rc.1` is tagged (Revision 3, below; §11). It is written for the kit's maintainers and contributors. It names what `kit-init` does, what it writes and why, how its templates stay true, and how it is released. Where it cites the kit, the line numbers are those of the `v1.0.0-rc.1` tree (`kit/` tree `16d76d5c`, commit `4083f42`); where it cites the example adopter, they are those of [`quokka-ci-kit-example`](https://github.com/aames/quokka-ci-kit-example) at `8ad9623`, written `example:<path>:<line>`.
+Status: specification, built, corrected and proven; the proofs ratified on 2026-11-03 with four defects ruled into piece 3b (Revision 3), and a security read's six fixes, piece 3c, ratified the same day (Revision 4, below; §11). Nothing ruled here is left before `v1.1.0-rc.1` is tagged but the release pull request. It is written for the kit's maintainers and contributors. It names what `kit-init` does, what it writes and why, how its templates stay true, and how it is released. Where it cites the kit, the line numbers are those of the `v1.0.0-rc.1` tree (`kit/` tree `16d76d5c`, commit `4083f42`); where it cites the example adopter, they are those of [`quokka-ci-kit-example`](https://github.com/aames/quokka-ci-kit-example) at `8ad9623`, written `example:<path>:<line>`.
+
+## Revision 4 (2026-11-03): the security read, six fixes
+
+A security read of the generator, KI-s, was made at `dbeebc2` and recorded as [docs/reviews/security-kit-init-2026-11-03.md](reviews/security-kit-init-2026-11-03.md). Piece 3c (commit `0a1d328`) fixed its medium finding and its five lows. That piece was read against the report and against this document, and its claims were re-run, not taken on report. **Verdict: the six fixes are ratified as built. The six notes wait for later releases, each for its reason (R4-8). Nothing here blocks `v1.1.0-rc.1`.** Each ruling below gives its reason, and the body carries `(rev 4, R4-n)` where it changed. Line numbers of the kit are those of `0a1d328`.
+
+What was re-run on this workstation (macOS, arm64):
+
+- **K-init:** `bash kit/tests/run --family init`: 540 cases, 0 failures.
+- **The two new plants:** `python3 kit/tests/plants --only init-symlink-targets --only init-bounded-values`: both red, with 10 and 7 failures.
+- **Red once, for all six:** `0a1d328`'s K-init family was pointed through `KITT_KIT` at a copy of the kit holding `dbeebc2`'s `kit-init`. It failed 40 times. Every failure was a `KI-s` case, all six findings were among them, and every other case passed.
+- **Isolated mode:** with a `yaml.py` on `PYTHONPATH`, `python3 -c 'import yaml'` exits 0 and `python3 -I -c 'import yaml'` exits 1. Under `-I`, `site.ENABLE_USER_SITE` is false.
+
+The builder reports 1,353 cases under both bashes, 96 plants red (`python3 kit/tests/plants --list` names 96), the image families green and the golden run equal. These are taken from that report, and the release pull request re-runs them (R3-7).
+
+### R4-1. The read
+
+The verdict was go with conditions: 0 critical, 0 high, 1 medium, 5 low and 6 notes. Nine findings were confirmed (7 by a run, 2 by reading), two need verification (findings 6 and 10), and one is a deliberate ruling (finding 12, R3-3). The condition, finding 1, had to be fixed before the tag. The read covered the generator only: its inputs, network lookups, subprocesses, signer handling, the workflow and Dockerfile it writes, the fence change of revision 3, and the agent documents. It did not re-review the launcher, the plan, the records or the trust model. The report is kept whole as the kit's record. Its one change is the method line, which no longer names the reader's working directory, and it is not amended when the code moves.
+
+### R4-2. Finding 1 (medium): no write through a symbolic link or outside the working copy's top. Ratified as built
+
+Rule: before anything is written, every path the run would write or append to is walked one component at a time from the top. A component that is a symbolic link is refused with `<path> is a symbolic link, and kit-init writes no file through one, so nothing was written.`, one sentence per link (`target_refusals`, `kit/bin/kit-init:883-903`, raised by `refuse_targets` at `:906-910`). This happens after rendering and `check_tokens` and before any write, on both routes: the adoption at `:1056` and `--agent-files-only` at `:952`. `write_all` then creates each new file with `O_CREAT|O_EXCL|O_NOFOLLOW` (`:797`), appends with `O_NOFOLLOW` (`:804`), and truncates on restore with `O_NOFOLLOW` (`:817`).
+
+- **A link that stays inside the working copy is refused too** (`kit/tests/fam/init.sh:632`). This is stricter than the read asked, and ratified: the rule is one test with no realpath arithmetic, and no file the generator writes has a reason to be a link.
+- **The second sentence**, `<path> lies outside the top of this working copy (<real path>), so nothing was written.` (`kit/bin/kit-init:900-902`), is a second guard that no input reaches. The plan's paths are the generator's fixed names, none holds `..`, and a path with no link in it cannot resolve outside the top. It is kept as defence in depth, has no case, and is not a row of §2.3, so AC-KI-4 does not count it.
+- Why: a committed link turned the maintainer's run into a write to any file the maintainer can write, and the write did not appear in the commit. A refusal before writing keeps §2.3's promise that a refusal means nothing was written. `O_NOFOLLOW` closes the last component as well.
+
+### R4-3. Finding 2 (low): every directory and file name a generated file carries is bounded. Ratified as built
+
+Rule: a stack directory, and every pin-file, lockfile, scan-directory and requirements-file value derived from it, must be `.` or match `BOUNDED_RE`, `^[A-Za-z0-9][A-Za-z0-9._/-]*$` (`kit/bin/kit-init:69`), with no empty, `.` or `..` segment. The one exception is a kit file name (`KIT_FILE_NAMES`, `:72`: `go.mod`, `go.sum`, `.nvmrc`, `.node-version`, `package-lock.json`, `.python-version`) under a bounded directory or `.` (`bounded()`, `:295-303`). A directory outside the shape is refused with `<dir> is not a directory name kit-init writes into a generated file (a directory is ., or letters, digits and . _ / - starting with a letter or digit, with no .. segment), so nothing was written.` (`:314-317`). A file name outside it gets the same sentence with "file name" and "a name is" (`:408-411`). The shape's words are `BOUNDED_SHAPE` (`:70`).
+
+- **The bound is the generator's, not the manifest's.** `path_problem` and the manifest's `ispath` are unchanged, so a hand-written manifest is held to `manifest v1` exactly as before, and §9.1's MINOR promise stands. Why: the read's risk was generated shell carrying a name the person never meant as code, and that risk exists only where the generator writes the name.
+- **The builder's note, `KIT_FILE_NAMES`:** three of those names start with a dot, so at `.` they would fail `BOUNDED_RE`. They pass because the generator chose them, not the repository. Ratified: the exception is a closed list of the kit's own constants.
+- **A directory may not start with a dot** (`.tools/web` is refused, though `tools/.web` passes). Ratified: a hidden directory as a stack's root is rare, and the refusal says the shape.
+- **The file-name sentence is reachable only through a requirements file.** The requirements regex (`:391`) takes `\w`, which matches non-ASCII letters, so `requirements-é.txt` reaches `bounded()` and is refused. Every other file value is a fixed name under a directory already bounded. The case is missing (R4-8, item 14).
+- Why bound rather than quote: quoting every token in every template is many changes across three languages of quoting (shell, Dockerfile, the workflow's expressions). The bound is one function, and the names real projects use already fit it.
+
+### R4-4. Finding 3 (low): the generator's own Python runs isolated. Ratified as built
+
+Rule: every `sys.executable` call goes through `python()` (`kit/bin/kit-init:136-141`), which always passes `-I`. That covers the PyYAML probe (`-c "import yaml"`) and both fences. In isolated mode, neither the current directory, `PYTHON*` variables nor the user's site-packages reach `sys.path`. §8 rule 1 now says so.
+
+- **The consequence, documented and not changed:** a PyYAML that the user site (`pip install --user`) or `PYTHONPATH` provides cannot be seen under `-I`. On such a machine, `check-workflow` does not run and the run exits 3 (R4-5). The NOT RUN line's remedy, running `python3 ci/kit/bin/check-workflow` yourself, then works, because that run is not isolated. The words "install it" are wrong there (R4-8, item 13). `kit/README.md` §2.2 states the rule.
+- Why ratified: a file at the repository's top runs before any of the kit's own checks, and the adoption guide promises that no repository code runs before `make check`. The cost is one honest exit 3 on a less common setup.
+
+### R4-5. Finding 4 (low): exit 3 when a check did not run. Ratified as built
+
+Rule: when `check-workflow` cannot run because this `python3 -I` has no PyYAML, the run prints `NOT RUN check-workflow: this python3 (<interpreter>) has no PyYAML; install it and run python3 ci/kit/bin/check-workflow[ --manifest-file ci/manifest] yourself; CI's always-on job runs it too.` in place of an exit code (`kit/bin/kit-init:1113-1119`). Above "Next, in order:", it then prints `check-workflow did not run, so this run proves nothing about it: install PyYAML for python3 and run python3 ci/kit/bin/check-workflow[ ...] before you push.` (`:1186-1188`). It exits 3 (`:1130-1131`). §2.5 gains the code.
+
+- **Precedence:** 2 refused, then 1 (a check found something, or the commit failed), then 3, then 0. Exit 3 means the files are written (and committed unless `--no-commit`), every check that ran held, and at least one did not run. A run with a finding and a check not run exits 1 and still prints both lines. Why: a finding needs action whether or not another check ran, and exit 3 must never hide one.
+- **The builder's note, where the line sits:** the not-run line prints above the numbered steps, not as one of them. Ratified: it is a fact about this run that is read before the steps, not an act in the landing order of §6. Its words name when to act ("before you push").
+- Only `check-workflow` can be not run today. A later check that can be skipped joins the same list.
+- Why: an agent reading the exit code alone was told every check held when one had not run (the read's finding 4, against the docstring and `docs/adopt-with-an-agent.md:82`).
+
+### R4-6. Finding 5 (low): a failed commit is said, and is exit 1. Ratified as built
+
+Rule: when `git add` or `git commit` exits non-zero, the run prints `The files are written but the commit failed (<git add|git commit> exited <n>: <git's first line>), so nothing is committed; commit them yourself, then run the checks below.` and the run's code is 1 (`kit/bin/kit-init:1086-1098`). The checks still run and print. They read HEAD, which does not hold the adoption, so their findings are expected, and the sentence tells the person to commit, then re-run them. §2.5 and §5.2 say so.
+
+- Why: exit 1 was already the code (a written run that something went wrong after), but nothing said whether the files were committed. The line names the step, its code and git's own words, so the person can see a refusing pre-commit hook or a signing failure.
+
+### R4-7. Finding 6 (low): a detached HEAD is refused; a guess of main is said. Ratified as built, `--main` declined
+
+Rule: without `--no-commit`, a detached HEAD is refused with `HEAD is detached, and kit-init commits on a branch for its own pull request, so nothing was written.` (`kit/bin/kit-init:1009-1010`). The main branch is read from `refs/remotes/origin/HEAD`. When that is unset, the run takes `main` (`:1008`) and says so above "Next, in order:": `kit-init took the main branch to be main, because origin/HEAD is not set here. If it is another branch, run git remote set-head origin -a, reset this branch to before the adoption commit and run kit-init again.` (`:1181-1185`, from `main_guessed` at `:1034`). The main-branch refusal names the branch it read (`:1011-1013`).
+
+- **`--main` is declined.** The read offered a flag checked against the guide's first question. A flag widens the interface for a value that git already holds, and the guess is now said, with the command that turns it into an answer. The manifest's `main-branch` line is also in the landing diff a reviewer reads.
+- Why refuse the detached HEAD: the adoption commit belongs on a branch for its own pull request (§2.3). A detached commit is easy to lose, and it escapes the main-branch test entirely. With `--no-commit` nothing is committed, so nothing is refused (`kit/tests/fam/init.sh:691-692`).
+
+### R4-8. The six notes, and three items this reading found: later work
+
+None blocks `v1.1.0-rc.1`. Each waits for the reason given, and is taken up as a PATCH or a later MINOR release.
+
+| Item | What | Why it waits |
+|---|---|---|
+| 7 | Check the python-build-standalone tag from the network against `^\d{8}$`, as the offline path checks it (the tag is read unchecked at `kit/bin/kit-init:557`; the offline path's `\d+` is at `:493`) | the tag is bounded by git's refname rules and must match both the asset name and `SHA256SUMS`, and as an `ARG` value it cannot inject an instruction; the check is consistency, not a closed hole |
+| 8 | Checksums are trusted on TLS alone (Go's index, Node's `SHASUMS256.txt` without its `.sig`, Python's `SHA256SUMS` from the same release as the archive); redirects are followed and reads are not capped | nothing fetched is executed, every value is checked as 64 hex and printed with its source for the reviewer, and `--checksums` exists for a person who verifies out of band. Cross-checking GitHub's asset `digest` and saying "trust on first use" in §4 is the next step |
+| 9 | The generated `prune` job is outside the workflow fence (W-8, W-11 and W-12 iterate the manifest's jobs only) | as generated it is correct (actions pinned by sha, main only, kit code at main's sha); fencing it is a `check-workflow` change, which belongs in its own release with its own proofs, not in the generator's |
+| 10 | `pip install --require-hashes` may not hash-check an sdist's build dependencies | needs verification first. The fix (`--only-binary :all:`) would refuse projects that have no wheels, so it is a deliberate change to the generated Python arm, not a fix |
+| 11 | Hygiene: `--no-same-owner` on the Go and Python extracts; `curl --proto-redir =https`; the signer principal unvalidated; `agent_files_only` raising a traceback, not a refusal, when `keys dump` lacks a directive | each comes after a check that already holds (the sha256 before the extract) or touches only the person's own value. They are batched into the next template PATCH |
+| 12 | The fence passes a manifest with no `escaping-scan` line (R3-3, AC-KI-33) | a deliberate ruling, visible in the manifest diff and re-running every job. A tighter form (refuse while any job pins `go` or `node`) is a fence change for its own release |
+| 13 | The NOT RUN sentence says "install it" where PyYAML is installed but unseen under `-I` (R4-4) | the exit code is honest, and the remedy it prints works. Rewording it to name isolated mode is a copy change for the next PATCH |
+| 14 | The file-name half of the bounded-value refusal has no case (a hashed `requirements-é.txt`, R4-3) | the same `bounded()` decides both sentences, and plant `init-bounded-values` turns the directory case red; the case completes AC-KI-4 for that row |
+| 15 | Plants for findings 3 to 6 (the `-I` removed; `rc = 3` removed; the commit-failure line removed; the detached-HEAD refusal removed) | their cases were seen red against `dbeebc2`'s generator, as R3-2 and R3-4's cases were. A plant guards against a later change to the case itself, and each is one line, for the next touch of `kit/tests/plants` |
+
+### R4-9. The documents
+
+`CHANGELOG.md`'s `v1.1.0-rc.1` entry gains one `Fixed:` line per fix and a `Reviewed:` line naming the record. §9.2 matches it. `kit/README.md` §1's `kit-init` row names exit 3 and the link refusal, §2.2 names `-I`, and §6.2's K-init row names the security cases and the two new plants. Following R3-6, §6.2 is the adopter's list of what is proven. In `QUICKSTART.md`, the `kit-init` done-when line names exit 3. `docs/adopt-with-an-agent.md:82` was rewritten in piece 3c, and it reads as R4-5's rule. `README.md` lists no exit codes and is unchanged.
 
 ## Revision 3 (2026-11-03): the proofs ratified, four defects ruled, the release written
 
@@ -268,7 +352,7 @@ Run at the top of a working copy, on a branch that is not the manifest's `main-b
 
 ### 2.3 The refusals
 
-Every refusal is one sentence ending `so nothing was written.`, printed before any file is touched, with exit 2. The generator renders every file in memory first, then checks every refusal, then writes; a write that fails part way removes the files this run created, truncates each file it appended to back to the length in bytes that file had on disk before the run, and touches nothing else (rev 2, R-1 a, R-4 c).
+Every refusal is one sentence ending `so nothing was written.`, printed before any file is touched, with exit 2. The paths it would write are checked for symbolic links after rendering and before writing, so a link refusal comes after the others have passed (rev 4, R4-2). The generator renders every file in memory first, then checks every refusal, then writes; a write that fails part way removes the files this run created, truncates each file it appended to back to the length in bytes that file had on disk before the run, and touches nothing else (rev 2, R-1 a, R-4 c).
 
 | Refusal | Sentence (the shape; the build may polish the words) |
 |---|---|
@@ -287,7 +371,10 @@ Every refusal is one sentence ending `so nothing was written.`, printed before a
 | `--signer auto` with no usable key | `--signer auto needs gpg.format ssh and a user.signingkey whose public key can be read, so nothing was written.` |
 | `--signer FILE` not one key | `<file> holds no single SSH public key line of a type the signers check knows, so nothing was written.` (the types are DESIGN §6.6's list) |
 | a checksum or digest that cannot be had | `The sha256 of go1.27.3.linux-arm64.tar.gz could not be fetched from https://go.dev/dl/?mode=json&include=all; fetch it yourself and pass it with --checksums, so nothing was written.` (one sentence per missing value, each naming its URL, and the file shape of §4.3) |
-| the current branch is the main branch | `kit-init commits the adoption on a branch for its own pull request, and this is main, so nothing was written.` (not raised with `--no-commit`) |
+| the current branch is the main branch | `kit-init commits the adoption on a branch for its own pull request, and this is main, so nothing was written.`, naming the main branch read from `origin/HEAD`, or `main` when that is unset (not raised with `--no-commit`; rev 4, R4-7) |
+| HEAD is detached | `HEAD is detached, and kit-init commits on a branch for its own pull request, so nothing was written.` (not raised with `--no-commit`; rev 4, R4-7; AC-KI-45) |
+| a path it would write or append to is, or lies under, a symbolic link | `CLAUDE.md is a symbolic link, and kit-init writes no file through one, so nothing was written.` (one sentence per link, the link's own path named; a link inside the working copy is refused too; rev 4, R4-2; AC-KI-40) |
+| a directory or file name outside the bounded shape | `api$(x) is not a directory name kit-init writes into a generated file (a directory is ., or letters, digits and . _ / - starting with a letter or digit, with no .. segment), so nothing was written.`; for a file name derived from a directory (a requirements file), the same with "file name" and "a name is" (rev 4, R4-3; AC-KI-41) |
 | the rendered manifest fails the lint | the lint's own findings, then `The manifest kit-init would write does not pass check-manifest, so nothing was written.` A failure here is a defect of the generator, and the kit's tests exist to make it impossible (§7.3) |
 | a Python below 3.9 | `kit-init needs python3 3.9 or later, and this is <version>, so nothing was written.` |
 | a file it reads that is not UTF-8 (a stack file, a pin file, a requirements file, an append target, or `ci/KIT-VERSION`, whose tag is read before anything is written) | `<path> is not UTF-8 text kit-init can read, so nothing was written.` (rev 2, R-1 b; rev 3, R3-2; AC-KI-35) |
@@ -298,13 +385,13 @@ Every refusal is one sentence ending `so nothing was written.`, printed before a
 - **No protection or settings change.** Branch protection, required checks and Actions settings stay a person's acts on the host (`kit/README.md:618,625`).
 - **No key generation, and no key in the landing commit.** It reads the existing signing key's public half for `--signer auto` and nothing else.
 - **No network beyond the lookups of §4**, each to a named host, all skipped with `--checksums`.
-- **Nothing outside the repository.** Its scratch files live in `<git common dir>/<project>-ci/init/`, under the kit's state directory (`kit/README.md:123`), and are removed at exit but for `allowed-signers.next`.
+- **Nothing outside the repository, and nothing through a symbolic link.** No target, and no directory above one, may be a link (rev 4, R4-2). Its scratch files live in `<git common dir>/<project>-ci/init/`, under the kit's state directory (`kit/README.md:123`), and are removed at exit but for `allowed-signers.next`.
 - **No edit of an existing line** in any file. It creates files, and appends to `Makefile`, `.gitignore`, `AGENTS.md` and `CLAUDE.md`; it never changes `ci/kit/`, `ci/KIT-VERSION` or `ci/KIT-SIGNERS`.
 - **No run of `make check`.** Building the job image takes minutes and is the next act the person takes, in the order of §6.
 
 ### 2.5 Exit codes
 
-`0`: written (and committed), every lint held. `1`: written, and a lint after writing found something; the findings are printed and the files stay for the person to fix. `2`: refused; nothing was written.
+`0`: written (and committed), every lint held. `1`: written, and a lint after writing found something, or the commit failed and one line says so; the findings are printed and the files stay for the person to fix. `2`: refused; nothing was written. `3`: written (and committed unless `--no-commit`), every check that ran held, and a check did not run; the output names it and how to run it (rev 4, R4-5, R4-6). When more than one applies, the first in the order 2, 1, 3 is the code: a finding is never hidden behind exit 3.
 
 ## 3. What it writes, file by file
 
@@ -499,14 +586,14 @@ The rendered manifest goes to a scratch file and through `bash ci/kit/bin/check-
 
 ### 5.2 The commit
 
-Unless `--no-commit`, the generator stages exactly the files it wrote or appended to, plus `ci/kit`, `ci/KIT-VERSION` and `ci/KIT-SIGNERS` when the vendoring left them uncommitted, and makes one commit of those paths alone (`git commit -- <paths>`), with the message `ci: adopt quokka-ci-kit <tag>`, the tag read from `ci/KIT-VERSION`. Git's own configuration decides whether the commit is signed. Why commit: `make check`, the lint and the fences all read the commit, not the working copy (`kit/README.md:282,623`), so an uncommitted adoption cannot be checked; and the commit leaves the person's other staged or unstaged work out of it.
+Unless `--no-commit`, the generator stages exactly the files it wrote or appended to, plus `ci/kit`, `ci/KIT-VERSION` and `ci/KIT-SIGNERS` when the vendoring left them uncommitted, and makes one commit of those paths alone (`git commit -- <paths>`), with the message `ci: adopt quokka-ci-kit <tag>`, the tag read from `ci/KIT-VERSION`. Git's own configuration decides whether the commit is signed. When `git add` or `git commit` exits non-zero, it prints `The files are written but the commit failed (<step> exited <n>: <git's first line>), so nothing is committed; commit them yourself, then run the checks below.`, runs the checks, and exits 1 (rev 4, R4-6; AC-KI-44). Why commit: `make check`, the lint and the fences all read the commit, not the working copy (`kit/README.md:282,623`), so an uncommitted adoption cannot be checked; and the commit leaves the person's other staged or unstaged work out of it.
 
 ### 5.3 After writing
 
 Run in order, each one's exit code printed as it stands and never through a pipe:
 
 1. `bash ci/kit/bin/check-manifest` at HEAD: all twelve rules, including rule 7's vendored tree and rule 8's shim (`kit/bin/check-manifest:234-256`). With `--no-commit`, `--file ci/manifest` and its own sentence for the rules that did not run.
-2. `python3 ci/kit/bin/check-workflow` (with `--manifest-file ci/manifest` under `--no-commit`; `kit/bin/check-workflow:65-69`). When `import yaml` fails, the generator prints `NOT RUN check-workflow: this python3 has no PyYAML; CI's always-on job runs it.` rather than a pass (`kit/bin/check-workflow:85-89`).
+2. `python3 ci/kit/bin/check-workflow` (with `--manifest-file ci/manifest` under `--no-commit`; `kit/bin/check-workflow:65-69`). When `import yaml` fails under `python3 -I`, the generator prints `NOT RUN check-workflow: this python3 (<interpreter>) has no PyYAML; install it and run python3 ci/kit/bin/check-workflow yourself; CI's always-on job runs it too.` rather than a pass (`kit/bin/check-workflow:85-89`), and the run exits 3 when nothing else is wrong (rev 4, R4-4, R4-5; AC-KI-43).
 3. `python3 ci/kit/bin/check-escaping-reads` (likewise `--manifest-file`).
 4. `bash ci/kit/bin/check-prereqs` (`kit/README.md:15`), so a missing Docker or an old git shows before `make check` is tried.
 
@@ -532,6 +619,8 @@ After the lints, the human steps in order, one line each, numbered, with the pro
 The steps are numbered in sequence: when no stub was written, step 3 is not printed and the steps after it close up (rev 2, R-4 d).
 
 When `check-manifest` exited 0 and `check-escaping-reads` exited 2 (no scan root holds a test file), one step comes before step 1: `Write a first test in <the scan directories>, commit it, and run python3 ci/kit/bin/check-escaping-reads again; CI's checks job refuses this tree until you do.` The scan line is still written (rev 3, R3-4; AC-KI-39).
+
+Above the numbered steps, two lines appear when they apply (rev 4, R4-5, R4-7): `kit-init took the main branch to be main, because origin/HEAD is not set here. If it is another branch, run git remote set-head origin -a, reset this branch to before the adoption commit and run kit-init again.` when `origin/HEAD` is unset, and, for each check that did not run, `<check> did not run, so this run proves nothing about it: install PyYAML for python3 and run python3 ci/kit/bin/<check> before you push.` They are facts about this run, read before the steps, not steps of the landing.
 
 Then one line on what was declared by hand: for each Python job, that its escaping reads are a census by hand (`kit/README.md:188`).
 
@@ -606,7 +695,7 @@ Why Python is acceptable here. The kit already ships two Python tools a person r
 
 What this means for `check-host`: no code change. `HOST_FILES` (`kit/bin/check-host:40-41`) keeps its nine entries; `kit-init` is not added, because it is not bash. Instead the generator carries two rules of its own, each proven in K-init:
 
-1. **Its subprocesses are a closed set**, called by argument vector, never through a shell: `git`, `docker` (the digest lookup only), `ssh-keygen` (the fingerprint only), and `bash` running the kit's own `check-manifest` and `check-prereqs`, plus `python3` (`sys.executable`) running the two fences. A test reads the script's syntax tree and fails on any other first argument or on `shell=True`.
+1. **Its subprocesses are a closed set**, called by argument vector, never through a shell: `git`, `docker` (the digest lookup only), `ssh-keygen` (the fingerprint only), and `bash` running the kit's own `check-manifest` and `check-prereqs`, plus `python3` (`sys.executable`) running the two fences and the PyYAML probe, always in isolated mode (`-I`), so neither the current directory, `PYTHON*` variables nor the user's site-packages reach its path (rev 4, R4-4; AC-KI-42). A test reads the script's syntax tree and fails on any other first argument or on `shell=True`.
 2. **Its syntax parses as Python 3.9**: a test runs `ast.parse(source, feature_version=(3, 9))`, so a newer construct cannot slip in on a contributor's newer Python.
 
 The README's §2.2 gains one sentence naming `kit-init` beside the two fences, and the prerequisite list of `kit/README.md:618` gains "`python3` 3.9 or later, to run `kit-init` once".
@@ -623,7 +712,7 @@ Later moves of the workflow template's action shas, or of the default Postgres m
 
 ### 9.2 The CHANGELOG entry
 
-As written at revision 3 (R3-7), equal to the entry in `CHANGELOG.md`; the release pull request writes the two placeholders and the date.
+As written at revision 3 (R3-7) and revision 4 (R4-9), equal to the entry in `CHANGELOG.md`; the release pull request writes the two placeholders and the date.
 
 ```markdown
 ## v1.1.0-rc.1 (unreleased)
@@ -643,6 +732,24 @@ As written at revision 3 (R3-7), equal to the entry in `CHANGELOG.md`; the relea
 - Changed: no file under `kit/` has a name a test runner or compiler collects
   from a repository's top. The kit's own fixture sources end in `.fixture`, so a
   project whose tests run from its top never runs the kit's.
+- Fixed: `kit-init` writes no file through a symbolic link. A file it would
+  write or append to that is a link, or sits under one, is refused, and nothing
+  is written.
+- Fixed: every directory and file name `kit-init` puts into a generated file is
+  letters, digits and `. _ / -`, so no name can carry shell or quotes into the
+  verdict script, the job image or the workflow.
+- Fixed: `kit-init` runs its own `python3` in isolated mode (`-I`), so a
+  `yaml.py` at the top of the repository is never imported.
+- Fixed: `kit-init` exits 3, not 0, when a check did not run (the workflow
+  fence without PyYAML), and says which check and how to run it.
+- Fixed: when the commit fails, `kit-init` says so in one line with git's exit
+  code and message, and exits 1.
+- Fixed: `kit-init` refuses a detached HEAD when it would commit, and says when
+  it guessed the main branch because `origin/HEAD` is not set.
+- Reviewed: a security read of `kit-init` before this release, recorded in
+  `docs/reviews/security-kit-init-2026-11-03.md`: one medium and five low
+  findings, all fixed above, and six notes left for later releases
+  (docs/kit-init.md, Revision 4).
 - Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
   formula, the plan's sentences, `check-host`'s file list and allow-list; every
   check but those two.
@@ -696,7 +803,7 @@ Each is checkable by reading a file or running a command.
 **The commit and the lints**
 
 - **AC-KI-21** Without `--no-commit`, HEAD is one new commit whose message is `ci: adopt quokka-ci-kit <tag>` and whose changed paths are exactly the generator's files plus any uncommitted vendoring; other staged work stays staged and uncommitted.
-- **AC-KI-22** After writing it runs the four checks of §5.3 in order and prints each exit code; a missing PyYAML prints the `NOT RUN check-workflow` line, never a pass.
+- **AC-KI-22** After writing it runs the four checks of §5.3 in order and prints each exit code; a missing PyYAML prints the `NOT RUN check-workflow` line, never a pass, and the run exits 3 when nothing else is wrong (rev 4, R4-5; AC-KI-43).
 - **AC-KI-23** The closing steps of §6 are printed in that order, one line each, with the project's job names.
 
 **The templates and the documents**
@@ -724,9 +831,18 @@ Each is checkable by reading a file or running a command.
 - **AC-KI-38** (R3-5) No file under `kit/` ends in `.go`, `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` or `.cjs`, or is named `test_*.py`, `*_test.py` or `conftest.py`; a K-init case holds this over the kit under test and is red once on a planted file, and every K-init, `initgo` and `initpy` case passes on the renamed fixtures.
 - **AC-KI-39** (R3-4) For a Go or Node directory with no test file, `kit-init` writes the `escaping-scan` line, exits 1, and prints the step of §6 naming that directory before `make check`; proven red once in K-init.
 
+**Added by revision 4**
+
+- **AC-KI-40** (R4-2) A target that is a symbolic link, or lies under one, is refused with exit 2 and `<path> is a symbolic link, and kit-init writes no file through one, so nothing was written.`, one sentence per link, on the adoption route and on `--agent-files-only`, and the file the link names is byte-equal afterwards. A link inside the working copy is refused too. Cases: `kit/tests/fam/init.sh:613-638` (a `CLAUDE.md` link, a `Makefile` link, a `.github` directory link, all three at once, a link inside the working copy, `--agent-files-only`). Plant: `init-symlink-targets` (`kit/tests/plants:160`), red in K-init.
+- **AC-KI-41** (R4-3) A stack directory outside the bounded shape (a command substitution; a quote) is refused with exit 2 and the sentence naming the shape, no `ci/ci-job.sh` is written, and nothing in the name runs. Cases: `kit/tests/fam/init.sh:644-649`. Plant: `init-bounded-values` (`kit/tests/plants:161`), red in K-init.
+- **AC-KI-42** (R4-4) A `yaml.py` at the repository's top is never imported: after a run, no file it would write exists and no `__pycache__` holds it. Cases: `kit/tests/fam/init.sh:656-658`. Plant: none; red once against `dbeebc2`'s generator (R4-8, item 15).
+- **AC-KI-43** (R4-5) Under a `python3` that cannot import PyYAML, the run writes and commits, prints the `NOT RUN check-workflow` line with its interpreter and the closing not-run line, and exits 3. Under one that can, the same run exits 0. Cases: `kit/tests/fam/init.sh:664-674`, and every exit-0 case through `KI_GREEN` (`:28-29`). Plant: none; red once against `dbeebc2`'s generator (R4-8, item 15).
+- **AC-KI-44** (R4-6) A commit refused by a pre-commit hook exits 1, prints the commit-failure line with `git commit`, its code and the hook's message, and leaves HEAD where it was. Cases: `kit/tests/fam/init.sh:683-685`. Plant: none; red once against `dbeebc2`'s generator (R4-8, item 15).
+- **AC-KI-45** (R4-7) A detached HEAD is refused with exit 2 and its sentence, and with `--no-commit` it is not refused. With `origin/HEAD` unset, the closing lines say the main branch was guessed and how to set it, and with it set they do not. Cases: `kit/tests/fam/init.sh:690-702`. Plant: none; red once against `dbeebc2`'s generator (R4-8, item 15).
+
 ## 11. Build plan
 
-Four pieces of work, in order (rev 2: piece 1 is built and ratified; piece 1b is added by R-1 and R-2; piece 2's brief is rewritten by R-7. Rev 3: pieces 1b, 2 and 3 are done and ratified; piece 3b is added by R3-2 to R3-5 and is the last before the tag). Each names who builds it, the files it may touch, the criteria it meets and an estimate in agent tokens from the measured medians of builds of this size.
+Four pieces of work, in order (rev 2: piece 1 is built and ratified; piece 1b is added by R-1 and R-2; piece 2's brief is rewritten by R-7. Rev 3: pieces 1b, 2 and 3 are done and ratified; piece 3b is added by R3-2 to R3-5. Rev 4: piece 3b is done, and piece 3c, the security read's six fixes, is done and ratified; the release pull request is all that is left before the tag). Each names who builds it, the files it may touch, the criteria it meets and an estimate in agent tokens from the measured medians of builds of this size.
 
 **1. The generator and its templates.** A build engineer. Files: `kit/bin/kit-init` (new), `kit/templates/**` (new), `kit/README.md` (§1 table row, §2.2 sentence, prerequisites, §7 gaining the generator route with steps 4 to 6 folded into it), `CHANGELOG.md` (the unreleased entry). Meets AC-KI-1 to AC-KI-3, AC-KI-5, AC-KI-7, AC-KI-8, AC-KI-10 to AC-KI-19, AC-KI-21 to AC-KI-26, AC-KI-31, each by the build's own run on the example's tree and on one scratch repository per stack. Estimate about 500k (range 400k to 600k): roughly 700 to 900 lines of Python and 600 lines of templates, three stacks, the lookups and the offline path.
 
@@ -776,7 +892,7 @@ Estimate about 260k (range 220k to 320k): the 220k first planned, plus the Pytho
 
 It does not touch `CHANGELOG.md`, `kit/README.md` or `docs/`, whose lines for it are written at revision 3; the release pull request reads them against what landed. Then: `bash kit/tests/run` under bash 3.2 and a current bash, `python3 kit/tests/plants` whole, `python3 kit/bin/check-host kit/`, and `bash kit/tests/image` on this arm64 workstation, each exit code pasted. Meets AC-KI-35 for `ci/KIT-VERSION`, AC-KI-37, AC-KI-38 and AC-KI-39. Estimate about 250k (range 200k to 320k): two small generator edits, one fence helper at three sites, about fifteen fixture renames with their copy helpers in two harnesses, about eight cases and two plants, and the full re-runs, `tests/image` cold among them because the fixtures move.
 
-Total first planned about 820k, range 700k to 1.0M; from here, pieces 1b, 2 and 3 are about 510k (range 420k to 620k). `v1.1.0-rc.1` waits for all three, AC-KI-36 included (rev 2, R-5), and for piece 3b (rev 3, R3-3 and R3-5). A security read is worth asking for once the first piece lands, scoped to the generator's network lookups, its subprocess set and the signer handling.
+Total first planned about 820k, range 700k to 1.0M; from here, pieces 1b, 2 and 3 are about 510k (range 420k to 620k). `v1.1.0-rc.1` waits for all three, AC-KI-36 included (rev 2, R-5), and for piece 3b (rev 3, R3-3 and R3-5). A security read is worth asking for once the first piece lands, scoped to the generator's network lookups, its subprocess set and the signer handling. (Rev 4: done as KI-s at `dbeebc2`, [docs/reviews/security-kit-init-2026-11-03.md](reviews/security-kit-init-2026-11-03.md). Its six fixes are piece 3c, `0a1d328`, ratified at R4-2 to R4-7; its notes are R4-8.)
 
 ## 12. Open questions
 

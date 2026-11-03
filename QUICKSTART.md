@@ -37,7 +37,7 @@ python3 ci/kit/bin/kit-init --project sightings --go api --node web --postgres a
 
 Give one flag per directory whose tests a job runs: `--go` for a `go.mod`, `--node` for a `package.json`, `--python` for a `.python-version`, and `--postgres <job>` for a job that needs a throwaway database. `kit-init` writes the manifest, the verdict script, the job image's Dockerfile, the workflow, the hook, the `check` target and the CI section for agents, commits them as one commit on `adopt-kit`, runs the lints and prints the steps that are left. When a file it would write already exists, or a pin is missing, it says which and writes nothing.
 
-*Done when* each check line it printed reads `exit 0` (`check-workflow` may read `NOT RUN` on a machine without PyYAML; CI runs it) and `git status` prints nothing.
+*Done when* `kit-init` exited 0, each check line it printed reads `exit 0`, and `git status` prints nothing. Exit 1 means a check found something, or the commit failed, and the output says which. Exit 2 means it refused and wrote nothing, and its sentence names the cause. Exit 3 means a check did not run, usually `check-workflow` on a machine whose `python3` has no PyYAML: run the line it printed before you push.
 
 ### D. Run the jobs (5 minutes, most of it the first image build)
 
