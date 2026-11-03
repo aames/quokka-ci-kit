@@ -140,7 +140,7 @@ Your workstation pays instead: a cold job image build (several minutes, once per
 
 ## Releases and the release signer
 
-No release is tagged yet. The first will be `v1.0.0-rc.1`; until it exists `kit-update` has nothing it will accept, so nothing can be vendored. A release is a signed, annotated tag on this repository's protected `main` whose message's first line is `quokka-ci-kit <tag>` ([CONTRIBUTING.md](CONTRIBUTING.md) has how one is cut), and its [CHANGELOG.md](CHANGELOG.md) entry names the `kit/` tree it vendors.
+The current release is `v1.0.0-rc.1`. A release is a signed, annotated tag on this repository's protected `main` whose message's first line is `quokka-ci-kit <tag>` ([CONTRIBUTING.md](CONTRIBUTING.md) has how one is cut), and its [CHANGELOG.md](CHANGELOG.md) entry names the `kit/` tree it vendors.
 
 The release signer's line for your `ci/KIT-SIGNERS`, in OpenSSH allowed-signers format:
 
@@ -154,7 +154,7 @@ Its fingerprint, as `ssh-keygen -lf` prints it:
 256 SHA256:Vwu8G5Eeo+oc6eRSJtjpGFVVMmUfMNrYpVMR0CfDjX8 no comment (ED25519)
 ```
 
-At your first vendoring `kit-update` prints the fingerprint of each line of your `ci/KIT-SIGNERS`. Compare it with the one above as GitHub shows this page at the release's tag and, for a channel apart from the clone, ask through this repository's issues. If the two differ, do not vendor. The example repository's `ci/KIT-SIGNERS` carries a development key, not the release signer's, until it vendors the first release.
+At your first vendoring `kit-update` prints the fingerprint of each line of your `ci/KIT-SIGNERS`. Compare it with the one above as GitHub shows this page at the release's tag and, for a channel apart from the clone, ask through this repository's issues. If the two differ, do not vendor. The example repository vendors this release, and its `ci/KIT-SIGNERS` carries this line.
 
 ## Layout of this repository
 
