@@ -11,15 +11,24 @@ One entry per release, newest first. Each entry names the tag, the date, whether
   with a refusing stub arm for anything else. Python 3.9 or later, standard
   library only; run once, by hand.
 - New: `kit/templates/`, the files it renders, signed with the release.
-- Changed: check-manifest rule 6 accepts the path ., as its text always said;
-  check-escaping-reads passes a manifest with no escaping-scan line, saying no
-  file was scanned, and counts depth correctly under a tree of .
+- Changed: `check-manifest` rule 6 accepts the path `.`, as its text always
+  said. `check-escaping-reads` passes a manifest with no escaping-scan line,
+  saying no file was scanned; under a tree of `.` it counts depth, accepts a
+  declared escaping-read line and scans a `test/` directory exactly as it does
+  under a named tree.
+- Changed: no file under `kit/` has a name a test runner or compiler collects
+  from a repository's top. The kit's own fixture sources end in `.fixture`, so a
+  project whose tests run from its top never runs the kit's.
 - Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
   formula, the plan's sentences, `check-host`'s file list and allow-list; every
   check but those two.
 - The proofs: the K-init family in `kit/tests/run` (every supported shape
-  generated offline and held to the lint and both fences), one shape end to end
-  in `kit/tests/image`, and planted defects in `kit/tests/plants`.
+  generated offline and held to the lint and both fences), two shapes end to
+  end in `kit/tests/image` (Go, Node and Postgres; Python with pytest), and
+  planted defects in `kit/tests/plants`, each seen red.
+- Proven on: linux/amd64, the kit's own CI run on the release pull request, and
+  linux/arm64, a workstation run of both end-to-end shapes at the same tree;
+  both are recorded in that pull request: `<written by the release pull request>`.
 - Moves keys: yes (every adapter-run key moves with `ci/kit`).
 - The `kit/` tree this tag names: `<written by the release pull request>`.
 - Adopter's actions: none. A project that adopted by hand may add the agent

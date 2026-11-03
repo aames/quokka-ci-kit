@@ -1,6 +1,71 @@
-# From the template to green in 30 minutes
+# Green CI in 30 minutes, or faster with kit-init
 
-You have a Go or Node project (or both) on GitHub Actions, and you want CI that skips a job whose exact content already passed, in CI or signed on your own machine. This page starts from the example repository, which is a GitHub template, and ends with a pull request whose tested jobs were skipped on your own signed `make check`. Each step has its command, a time, and a "done when" line. The why behind every step is in [README.md](README.md) and [DESIGN.md](DESIGN.md); this page is only the how.
+You have a project on GitHub Actions, and you want CI that skips a job whose exact content already passed, in CI or signed on your own machine. This page has two routes, each ending with a pull request whose tested jobs were skipped on your own signed `make check`: **Faster: kit-init**, for a repository you already have, and **the template route** (steps 1 to 9), for a new repository made from the example. Each step has its command, a time, and a "done when" line. The why behind every step is in [README.md](README.md) and [DESIGN.md](DESIGN.md); this page is only the how.
+
+## Faster: kit-init
+
+For a repository you already have, with its tools pinned where they read their version (a `toolchain` line in `go.mod`, an exact `.nvmrc`, an exact `.python-version`). `kit-init` ships from `v1.1.0-rc.1`. You need what the template route needs (below), plus `python3` 3.9 or later. The names `sightings`, `api` and `web` are examples: use your project's name and directories.
+
+### A. Get the kit and check your machine (2 minutes)
+
+```sh
+git clone https://github.com/aames/quokka-ci-kit.git ../quokka-ci-kit
+bash ../quokka-ci-kit/kit/bin/check-prereqs
+git config gpg.format ssh
+git config user.signingkey ~/.ssh/id_ed25519.pub
+git config commit.gpgsign true
+```
+
+*Done when* `check-prereqs` exits 0. The last three lines make git sign your commits with your SSH key, which is also the key that will sign your local test records.
+
+### B. Vendor the kit (3 minutes)
+
+On `main` with a clean working tree, put the release signer's line from [README.md](README.md#releases-and-the-release-signer) into `ci/KIT-SIGNERS` (make the `ci` directory if it does not exist), then:
+
+```sh
+bash ../quokka-ci-kit/kit/bin/kit-update v1.1.0-rc.1
+git switch -c adopt-kit
+```
+
+*Done when* `kit-update` printed the fingerprint `SHA256:Vwu8G5Eeo+oc6eRSJtjpGFVVMmUfMNrYpVMR0CfDjX8` for that line and `ls ci/kit/bin/kit-init` lists the file. If the fingerprint differs, stop.
+
+### C. Write the files (1 minute)
+
+```sh
+python3 ci/kit/bin/kit-init --project sightings --go api --node web --postgres api --signer auto
+```
+
+Give one flag per directory whose tests a job runs: `--go` for a `go.mod`, `--node` for a `package.json`, `--python` for a `.python-version`, and `--postgres <job>` for a job that needs a throwaway database. `kit-init` writes the manifest, the verdict script, the job image's Dockerfile, the workflow, the hook, the `check` target and the CI section for agents, commits them as one commit on `adopt-kit`, runs the lints and prints the steps that are left. When a file it would write already exists, or a pin is missing, it says which and writes nothing.
+
+*Done when* each check line it printed reads `exit 0` (`check-workflow` may read `NOT RUN` on a machine without PyYAML; CI runs it) and `git status` prints nothing.
+
+### D. Run the jobs (5 minutes, most of it the first image build)
+
+```sh
+make check
+bash ci/kit/bin/check-adapter api
+```
+
+Run `check-adapter` once for each job `kit-init` named, except `kit`.
+
+*Done when* each command exits 0.
+
+### E. Land it, then add your signer (10 minutes, mostly waiting)
+
+Follow the numbered steps `kit-init` printed, in order: copy the residual paragraph into your own documentation, protect `main`, merge `origin/main` into `adopt-kit`, push it once with `git push --no-verify -u origin adopt-kit`, open the pull request, and merge it when every job is green. Then add your signer in a pull request of its own:
+
+```sh
+git switch main && git pull && git switch -c add-signer
+cat "$(git rev-parse --git-common-dir)/sightings-ci/init/allowed-signers.next" >> ci/allowed-signers
+git commit -am "ci: add my signer"
+git push -u origin add-signer
+```
+
+*Done when*, before that push, `git -c gpg.ssh.allowedSignersFile=ci/allowed-signers log --show-signature -1` reads `Good "git" signature for <your email>`, and the pull request is merged. From here every push goes through the hook, as step 9 below shows.
+
+**Why your signer line comes second here, and first in the template route.** With `kit-init`, your `main` has no signers file yet: the landing commits `ci/allowed-signers` holding only its comment line, and `kit-init` keeps your line in `<git common dir>/<project>-ci/init/allowed-signers.next`, so the one trust decision of adoption is reviewed alone, in a small pull request, never inside the large generated one. In the template route, your new repository's `main` already carries the example author's line, so step 3 replaces it with yours in the landing pull request: `main` stops trusting someone else's key the moment the landing merges.
+
+## The template route
 
 **You need:** Docker running, git 2.34 or later, an SSH key (`~/.ssh/id_ed25519.pub` below; use your own key's path where it differs), and admin rights on the new repository. The [GitHub CLI](https://cli.github.com/) (`gh`) saves two trips to the web page but is optional. Go, Node and Postgres come in the job image, not from your machine.
 
@@ -20,11 +85,11 @@ The template copies the files of `main` and nothing else: no records, no tags. G
 
 ## 2. Check that the vendored kit is the real release (2 minutes)
 
-`ci/kit/` arrived with the template. Confirm it is release `v1.0.0-rc.1`, signed by the key published in [README.md](README.md#releases-and-the-release-signer):
+`ci/kit/` arrived with the template. Confirm it is release `v1.0.0`, signed by the key published in [README.md](README.md#releases-and-the-release-signer):
 
 ```sh
 cut -d' ' -f3- ci/KIT-SIGNERS | ssh-keygen -lf -
-diff <(bash ci/kit/bin/kit-update --verify-only v1.0.0-rc.1 | head -n 4) <(head -n 4 ci/KIT-VERSION)
+diff <(bash ci/kit/bin/kit-update --verify-only v1.0.0 | head -n 4) <(head -n 4 ci/KIT-VERSION)
 ```
 
 *Done when* the fingerprint reads `SHA256:Vwu8G5Eeo+oc6eRSJtjpGFVVMmUfMNrYpVMR0CfDjX8` and `diff` prints nothing. If either differs, stop. Keep `ci/KIT-SIGNERS` exactly as it is: it names who may sign a kit release, not who may vouch for your tests.
@@ -41,7 +106,7 @@ gh ssh-key add ~/.ssh/id_ed25519.pub --type signing --title "commit signing"
 printf '%s namespaces="git" %s\n' "$(git config user.email)" "$(cut -d' ' -f1,2 ~/.ssh/id_ed25519.pub)" > ci/allowed-signers
 ```
 
-The `gh` line tells GitHub the key signs commits (or add it under **Settings, SSH and GPG keys, New SSH key, Signing key**). The last line replaces the example author's line in `ci/allowed-signers` with yours; CI reads that file from `main` only, so it trusts you once this branch merges.
+The `gh` line tells GitHub the key signs commits (or add it under **Settings, SSH and GPG keys, New SSH key, Signing key**). The last line replaces the example author's line in `ci/allowed-signers` with yours; CI reads that file from `main` only, so it trusts you once this branch merges. Your line goes into the landing here because the template's `main` already trusts someone, the example's author, and leaving that line until a later pull request would keep it trusted on your `main` meanwhile; with `kit-init` the file starts empty and your line comes in a pull request of its own (Faster: kit-init, step E).
 
 *Done when* `cut -d' ' -f3- ci/allowed-signers | ssh-keygen -lf -` prints the same fingerprint as `ssh-keygen -lf ~/.ssh/id_ed25519.pub`, and the file holds that one line.
 
@@ -167,14 +232,10 @@ Every Monday at 06:20 UTC (`weekly-cron` in `ci/manifest`, held equal to the wor
 - **Escaping reads.** `check-escaping-reads` sees Go and TypeScript test files only. A helper your tests import that reads files at run time (migrations through a relative path, a fixture loader), or a path built rather than written, is yours to declare with an `escaping-read` line ([kit/README.md](kit/README.md) §3.4).
 - **Job time bounds.** Each workflow job has a `timeout-minutes`; measure your suite's real time in CI and set about half again its worst run.
 
-## Python, as far as the kit goes today
+## Python
 
-The kit has no Python adopter yet, so treat this as a sketch, not a proven path. What `manifest v1` offers: a pin read from a file (`pin-source python first-line .python-version`, the file holding just `3.13`), and a probe that reads the interpreter's major and minor version (`probe python python-minor`). What it lacks: an install kind other than `npm-ci`, a pip cache, and an escaping-read scanner for Python. So:
-
-- **The image.** The kit's base is Debian 13, whose `python3` is 3.13 without `venv`. In `ci/image/Dockerfile`, as `USER root`, install `python3-venv` and fail the build unless the interpreter's minor version equals `.python-version`; list `.python-version` in `image-path` and in the job's `paths`. Another Python version means building it into the image by checksum, as the example does for Go.
-- **The arm.** Your arm in `ci/ci-job.sh` makes a virtual environment in its scratch directory, installs your locked requirements (`pip install --require-hashes -r requirements.txt`), runs `pytest`, and prints `<name>-ci-job v1 counts <job> pytest_tests <n>`. The job container has network access but no pip cache, so every run downloads its packages.
-- **The manifest and workflow.** `job py local`, `pin py python`, `count py pytest_tests`, no `cache` line, and a workflow job shaped like `web:` without its cache step, its outputs added to `checks`. Declare any test that reads outside its tree by hand, with `escaping-read`.
+`kit-init --python <dir>` writes a Python job whole when the directory holds an exact `.python-version` (such as `3.12.15`) and a `requirements*.txt` whose lines carry `--hash=` and name `pytest`. The job image carries that CPython from python-build-standalone, checked against its published checksums for both architectures; the job makes a virtual environment, installs your requirements with `pip install --require-hashes`, runs pytest and counts the tests that passed. Without a hashed requirements file it writes a stub that refuses until you fill it in. The template has no Python job, so for a Python project use Faster: kit-init above. No scanner reads Python tests: declare any test that reads outside its own directory with an `escaping-read` line ([kit/README.md](kit/README.md) §3.4).
 
 ## When the template is not the right start
 
-To adopt the kit in a repository you already have, with its history, follow [README.md](README.md#quick-start)'s pointer to the full procedure in [kit/README.md](kit/README.md) §7: the same files, written by you, and one extra pull request, because your `main` has no signers file until you add one.
+To adopt the kit in a repository you already have, with its history, use Faster: kit-init at the top of this page. Every step with what proves it done, and the route for writing the files by hand, is [kit/README.md](kit/README.md) §7: the same files, and one extra pull request, because your `main` has no signers file until you add one.

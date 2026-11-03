@@ -1,17 +1,17 @@
 # The CI section for an adopter's AGENTS.md and CLAUDE.md
 
-`kit-init` will write this section into your repository's `AGENTS.md` and `CLAUDE.md` for you once it exists ([kit-init.md](kit-init.md)). Until then, append it by hand: copy everything from the `## CI (quokka-ci-kit)` heading to the end of this file onto the end of each of the two files, creating either if absent, and commit. If your adapter, image or check command live elsewhere than the example's, change those paths in your copy.
+An agent working in your repository needs the same few facts a new contributor needs: run `make check` before a push, never edit `ci/kit/`, never push with `--no-verify`, never loosen a job to make it pass. The kit keeps that section as one text, [`kit/templates/agents/section.md`](../kit/templates/agents/section.md) (vendored at `ci/kit/templates/agents/section.md`), and this page holds no copy of it, because two copies drift.
 
-## CI (quokka-ci-kit)
+**How it gets into your repository:**
 
-This repository's CI skips a job when its exact content already passed, in CI or, signed, on a workstation. The rules for working here:
+1. **With `kit-init`** (from `v1.1.0-rc.1`), nothing to do: it writes the section into `AGENTS.md` and `CLAUDE.md` with your adapter, check command, jobs and main branch filled in, creating either file or appending after one blank line. `--no-agent-files` skips it.
+2. **Adopted by hand, or on an earlier release:** vendor `v1.1.0-rc.1` or later, then run:
 
-- `ci/manifest` decides each job's key: the paths its verdict depends on, its pins and its counts. It is data; never put a secret in it.
-- `ci/ci-job.sh <job>` is each job's one verdict script, run the same way by CI and by `make check`. Never put a secret in it; settings come from the environment.
-- `make check` runs the local jobs at `HEAD` inside the job image. It tests the commit, not the working copy, so commit before running it.
-- The pre-push hook (`.githooks/pre-push`) runs any job not yet passed and signs a record of each pass with the person's key. Never run `ci/kit/bin/local-ci sign` or `push` yourself, and never touch a signing key.
-- Never edit `ci/kit/`. It is vendored from a signed release; update it only with `ci/kit/bin/kit-update <tag>`, in a pull request of its own.
-- To add a job: its lines in `ci/manifest`, its arm in `ci/ci-job.sh` ending in one counts line, its job in `.github/workflows/ci.yml`; commit, then run `bash ci/kit/bin/check-manifest`, `python3 ci/kit/bin/check-workflow`, `python3 ci/kit/bin/check-escaping-reads`, `make check` and `bash ci/kit/bin/check-adapter <job>`.
-- Never push with `--no-verify`; it skips the hook and the job runs again in CI. The landing pull request that adopted the kit was the one exception.
-- Never change branch protection or required checks; ask the person.
-- The reference is `ci/kit/README.md`; the design is `https://github.com/aames/quokka-ci-kit/blob/main/DESIGN.md`.
+   ```sh
+   python3 ci/kit/bin/kit-init --agent-files-only
+   ```
+
+   It reads your committed `ci/manifest` and writes the two files without committing them. *Done when* both files hold the section between its `quokka-ci-kit section begin` and `end` markers; commit them in a pull request of their own.
+3. **On a kit older than `v1.1.0-rc.1`:** read the template in the kit repository, copy it into both files, and replace its six `@@NAME@@` tokens by hand: `@@ADAPTER@@` (your verdict script), `@@CHECK@@` (your check command), `@@JOBS@@` (the jobs it runs), `@@MAIN@@`, `@@WORKFLOW@@` and `@@SIGNERS@@` (from `ci/manifest`).
+
+`kit-init` refuses to add the section to a file that already holds its begin marker, so running it twice changes nothing.

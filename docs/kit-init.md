@@ -8,7 +8,100 @@
     ____ooo___ooo_____|______|____
 ```
 
-Status: specification, built once and ratified against that build on 2026-11-03 (Revision 2, below); the next piece and the proofs follow (§11). It is written for the kit's maintainers and contributors. It names what `kit-init` does, what it writes and why, how its templates stay true, and how it is released. Where it cites the kit, the line numbers are those of the `v1.0.0-rc.1` tree (`kit/` tree `16d76d5c`, commit `4083f42`); where it cites the example adopter, they are those of [`quokka-ci-kit-example`](https://github.com/aames/quokka-ci-kit-example) at `8ad9623`, written `example:<path>:<line>`.
+Status: specification, built, corrected and proven; the proofs ratified on 2026-11-03 with four defects ruled into one last code piece, 3b, that lands before `v1.1.0-rc.1` is tagged (Revision 3, below; §11). It is written for the kit's maintainers and contributors. It names what `kit-init` does, what it writes and why, how its templates stay true, and how it is released. Where it cites the kit, the line numbers are those of the `v1.0.0-rc.1` tree (`kit/` tree `16d76d5c`, commit `4083f42`); where it cites the example adopter, they are those of [`quokka-ci-kit-example`](https://github.com/aames/quokka-ci-kit-example) at `8ad9623`, written `example:<path>:<line>`.
+
+## Revision 3 (2026-11-03): the proofs ratified, four defects ruled, the release written
+
+The proofs piece (commit `ed8b518`, on piece 1b `870e195`) was read against §10 and §11 piece 2, and its claims were re-run at `4375618` (the generator branch merged with the public `main` at `v1.0.0`) rather than taken on report. **Verdict: the proofs are ratified; four defects found, three by the proofs and one by this reading, are ruled into one bounded code piece, 3b (§11), and two of them block `v1.1.0-rc.1`.** Each ruling has its reason; the body carries `(rev 3, R3-n)` where it changed. Line numbers of the kit are those of `4375618`.
+
+What was re-run on this workstation (macOS, linux/arm64 job images):
+
+- **K-init:** `bash kit/tests/run --family init`, 465 cases, 0 failures, 34 s.
+- **The two end-to-end families:** `bash kit/tests/image --family initgo --family initpy`, 20 cases, 0 failures, 101 s warm. The counts lines seen: `rottnest-ci-job v1 counts api go_packages 1 go_tests 6`, `... web vitest_files 1 vitest_tests 7`, `... kit kit_cases 1258`, `pyshape-ci-job v1 counts py pytest_tests 4`. The kit job counts 1,258 where the host run counts 1,269: the 11 AC-KI-27 cases read the kit repository's own workflow and print an info line instead in an adopter's tree, so the kit job there stays free of `NOT RUN`.
+- **The eight `init` plants:** `python3 kit/tests/plants --only <each>`, all eight red (failures per plant 7, 2, 39, 3, 3, 15, 113 and 1).
+- **The three defects as reported**, each in a scratch repository, and the fourth below.
+
+### R3-1. The proofs against §10
+
+| Criterion | Ruling | Evidence |
+|---|---|---|
+| AC-KI-2 | met | the syntax-tree test at 3.9 and its red-once source (`kit/tests/fam/init.sh:112`, `:135`); the version refusal under a faked 3.8.18 (`:143-147`) |
+| AC-KI-3 | met | the subprocess walk and three red-once sources (`init.sh:112-129`) |
+| AC-KI-4 | met | one case per refusal row of §2.3, each seeing exit 2, its sentence, and the status, index, HEAD and tree unchanged; the network refusal is reached offline through `--checksums` lines that are absent, which is the same sentence |
+| AC-KI-6 | met | the family under a closed proxy with `--checksums`; the docker shim sees no digest lookup; plant `init-offline-branch` red with 113 failures |
+| AC-KI-9 | met | the CRLF Makefile restored byte for byte after a planted write failure (`init.sh:349-352`); plant `init-restore-decoded` red |
+| AC-KI-20 | met | the golden fixture `kit/tests/fixture/init/golden/` and its comparison, comment and blank lines set aside |
+| AC-KI-27 | met | the guard step (`.github/workflows/ci.yml:94-131`), red once in-family on a copied body line, tokens filled in or not (`init.sh:567`, `:577`) |
+| AC-KI-28 | met, the text narrowed | the eight plants red. "And only K-init" holds by construction for the seven `tests/run` plants: no other family reads `bin/kit-init` or `templates/` as code (their only mentions in `fam/escaping.sh` and `fam/manifest.sh` are comments). `init-python-path` turns `initpy` red, the end-to-end half of the same proofs. §10's text now says so |
+| AC-KI-29 | met | `initgo`, above, on arm64; amd64 is the kit's own CI run (R3-7) |
+| AC-KI-30 | met as written; widened by R3-3 | all eight shapes through the four checks; the `.` shape declares no `escaping-read` line, which is why defect 2 was not seen there |
+| AC-KI-35 | not met for one file; piece 3b | every stack file, pin file, requirements file, checksums file and append target is refused (34 cases); `ci/KIT-VERSION` is not (R3-2) |
+| AC-KI-36 | met | `initpy`, above, with plant `init-python-path` red, so the pinned interpreter, not the base image's `python3`, is the one that answers |
+| §8's two rules | met | as AC-KI-2 and AC-KI-3 |
+
+The fixture gap the proofs found in `kit/tests/lib.sh` (`fx_new` now vendors `templates`, `:160`) is ratified: the vendored kit job reads its templates like any adopter's.
+
+AC-KI-23 is met for its first, stub and last steps (`init.sh:472`, `:489`, `:510`), not for the order of all twelve; the order was ratified by reading at revision 2 and is not re-opened.
+
+### R3-2. Defect 1: the tag is read after the writes. Fixed in piece 3b; not blocking alone
+
+`kit-init:1009-1010` reads `ci/KIT-VERSION` for the commit message after `write_all` (`:999`). A file there that is not UTF-8 refuses with `ci/KIT-VERSION is not UTF-8 text kit-init can read, so nothing was written.` after the files were written: reproduced, seven files written with `--no-agent-files`, nine without it. **Fix: read the tag once in `preflight_repo` (`kit-init:830-838`), where the file's presence is already checked, and pass it on; nothing else reads the file.** Why: §2.3 promises every refusal before any file is touched, and exit 2 after writing tells the person the opposite of what happened. Only a damaged `ci/KIT-VERSION` reaches it, since `kit-update` writes that file, so it would not hold the release by itself.
+
+- Red once: a K-init case, `ci/KIT-VERSION` holding the byte `0xe9`, sees exit 2, the sentence, and the status, index, HEAD and tree unchanged; it fails on the current line.
+
+### R3-3. Defect 2: the fence's path tests under a tree of `.`. Fixed in piece 3b; blocks the release
+
+`check-escaping-reads:407` tests `rel.startswith(t + "/")`, which is never true for `.`, so a keyed `escaping-read` line under `escaping-tree go .` is refused with `db/a_test.go is declared for job go but is not in ./.`: reproduced. That is the line the fence's own FAILED sentence tells the person to write. Two more tests of the same shape were found beside it:
+
+- `:295` takes a TypeScript test under a scan root's `test/` directory by `rel.startswith(top.rstrip("/") + "/test/")`; for a root of `.` the prefix is `./test/`, so `test/helper.ts` is never scanned. Shown by calling `test_files` on a scratch tree: the result is empty. A test the fence never reads is an under-report.
+- `:375` decides whether a tree has a scan line; a tree of `.` with a scan root inside it (`--node .` when `src/` exists writes `escaping-scan ts src`) is told `its reads are declared by hand`, which is false.
+
+**Fix: one helper, illustratively `within(path, tree)`, true when the tree is `.`, the path equals the tree, or the path starts with the tree and `/`; used at `:295` (a root of `.` takes `test/` itself), `:375` and `:407`; and the location word at `:408` reads `the repository's top` for `.` instead of `./`.** Why: `.` is a shape AC-KI-30 claims as supported, and revision 2 fixed its depth (R-2 item 3) but not these three tests of the same path; a supported shape whose fence refuses the declaration it asks for is not supported, and `:295` is a gap in a soundness fence.
+
+- Red once (AC-KI-37): in the escaping family, (i) a keyed `escaping-read` line under a tree of `.` exits 0; (ii) under a `ts` scan root of `.`, a file `test/helper.ts` climbing out of the tree is a finding; (iii) a tree of `.` with the scan root `src` prints no "declared by hand" line for that tree. Each fails before the change. K-init's `.` shape gains one declared, keyed `escaping-read` line, so AC-KI-30 reaches the declaration path.
+- Plant: `:407` restored to `rel.startswith(t + "/")`, red in the escaping family.
+
+### R3-4. Defect 3: a stack directory with no test file. The scan line stays; a closing step is added. Fixed in piece 3b; not blocking alone
+
+For a Go or Node job whose directory holds no test file, `kit-init` writes its `escaping-scan` line, the fence refuses with `the escaping-read fence found no test files, so it would prove nothing.` (exit 2), and `kit-init` exits 1: reproduced. **Ruling: keep writing the scan line, keep exit 1, and add one closing step, printed only when `check-manifest` exited 0 and `check-escaping-reads` exited 2: `Write a first test in <the scan directories>, commit it, and run python3 ci/kit/bin/check-escaping-reads again; CI's checks job refuses this tree until you do.`, numbered with the others, before `make check`.** Why not omit the line: the generator never rewrites its files, so a line left out at adoption leaves every test written later unscanned, and the fence would say "declared by hand" about a language it can read. Why not count test files in `kit-init`: that would be a second computer of the fence's own rule, which drifts. Exit 1 is already honest by §2.5 (written, and a check found something); what was missing is the way forward. A project with no test cannot pass `make check` either, because its counts are zero, so this is guidance, not a hole.
+
+- Red once (AC-KI-39): a K-init case, a Go directory with `go.mod` and no `_test.go`, sees exit 1, the fence's sentence, the step naming the directory, and the scan line in the manifest; it fails on the current code for want of the step.
+
+### R3-5. Defect 4, found by this reading: the vendored fixtures are collected by an adopter's own test runners. Fixed in piece 3b; blocks the release
+
+Every adopter vendors `kit/` whole at `ci/kit/`, and the proofs added the kit's first test-shaped sources: seven `.go` files (four `_test.go`), four `.ts` files (three `.test.ts`) and two `test_*.py` files under `kit/tests/fixture/init/`. `v1.0.0`'s tree has none. A test runner that discovers from the repository's top therefore runs the kit's fixtures as the adopter's tests:
+
+- **pytest, measured:** a scratch root holding `ci/kit` and one test of its own gives `2 failed, 5 passed`, both failures from `ci/kit/tests/fixture/init/e2e-python/tests/test_pinned.py`, which asserts Python 3.12.15 and `/usr/local/python`; the passing count includes the kit's tests too.
+- **vitest and tsc, by their documented defaults (not run here):** vitest's default include takes `ci/kit/tests/fixture/init/src/novitest/src/plain.test.ts`, which uses `node:test`, so `vitest run` fails on a file with no suite; a root `tsconfig.json` without `include` type-checks every `.ts` under `ci/kit`.
+- **The fence:** under `escaping-tree <job> .` the fence scans the kit's fixture tests as that job's (`test_files`, `check-escaping-reads:279-301`); none climbs today.
+- **Go:** `go vet ./...` and `go test ./...` skip the fixtures because each sits in a nested module, and they pass `gofmt -l` today; a later fixture could break either.
+
+This breaks `make check` for kit-init's own `--python .` and `--node .` shapes, and on upgrade for any `v1.0.0` adopter whose pytest, vitest or root `tsconfig.json` reads from the top, with no line of theirs changed. Under `kit/README.md` §5.1 that is a change the adopter must act on, in a release that says MINOR and "Adopter's actions: none". **Ruling: no file under `kit/` has a name that a test runner or compiler collects by default from a repository's top: none ends in `.go`, `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` or `.cjs`, and none is named `test_*.py`, `*_test.py` or `conftest.py`. The fixture sources are stored with `.fixture` appended to each such name, and the copy helpers strip it when they place a fixture in a scratch repository (`kit/tests/fam/init.sh:47` `init_put` and the other `$KI_FIX` copies; `kit/tests/image`'s `e2e` copies).** Why a naming rule and not a path outside `kit/`: the kit job runs `ci/kit/tests/run` inside every adopter, so its fixtures must travel in the vendored tree; a name no tool collects is the one placement every runner respects without configuration.
+
+- Red once (AC-KI-38): a K-init case walks `$KITT_KIT` and fails on any file the rule names, red once on a planted `kit/tests/fixture/init/src/go/planted_test.go` in a copy; every other K-init, `initgo` and `initpy` case stays green on the renamed fixtures.
+
+### R3-6. `kit/README.md` §6.2 follows the build
+
+The family table gains K-init (`tests/run`) and the kit-init end-to-end shapes (`initgo`, `initpy`, in `tests/image`), and the "red once by" cells gain the eight `init` plants as built and the four plants of `v1.0.0-rc.2` and piece 1b (`escaping-top-depth`, `escaping-no-scan`, `escaping-dot-depth`, `manifest-rule6-dot`). §1's `tests/image` row names the two shapes. Why: §6.2 is the adopter's list of what is proven for them, and a family it does not name is a proof nobody knows to run.
+
+### R3-7. The release
+
+- **The CHANGELOG entry** (the first entry of `CHANGELOG.md`, `v1.1.0-rc.1 (unreleased)`) has §9.2's shape and sits above `v1.0.0`, newest first, as the merge placed it. Corrected: "The proofs" line named one shape end to end where two are built, and named no plant count; the `Changed:` line gains piece 3b's fence change and the fixtures' rule; a `Proven on:` line is added. §9.2 below is rewritten to match.
+- **The tree hash and the date** are written by the release pull request, from `git rev-parse HEAD:kit` on its last commit, as `CONTRIBUTING.md`'s release steps say.
+- **The two architectures (R-5).** amd64 is proven by the kit's own CI run on the release pull request's head: its `kit` job runs `bash kit/tests/image` whole, `initgo` and `initpy` included (`.github/workflows/ci.yml:152-153`). arm64 is one run of `bash kit/tests/image --family initgo --family initpy` on this arm64 workstation at the same head commit, its `cases:` line pasted into the pull request's description. The entry's `Proven on:` line names both. Today's arm64 run at `4375618` ratifies AC-KI-29 and AC-KI-36 here; it is not the release record, because piece 3b changes the tree.
+- **The order.** Piece 3b, then its own re-run of `tests/run` under both bashes, the plants and `tests/image` on both architectures, then the release pull request. `v1.1.0-rc.1` waits for 3b.
+
+### R3-8. §12 question 6 is closed
+
+It was answered "rc.2 first": the depth fix shipped as `v1.0.0-rc.2` (`d5955a2`) and `v1.0.0` was tagged on that tree (`9e282b4f`, merge `df18216`). §9.1 is marked; R-2 item 3's depth line for `.` composed with it as revision 2 expected.
+
+### R3-9. The cache-runtime action's comment
+
+The sha `04d248b84655b509d8c44dc1d6f990c879747487` is the action's `v4` and `v4.0.0` tags (read from its repository's tag list). `kit/README.md:398` and `:524` read `# v3`; both now read `# v4.0.0`, as the template and the example do. The fixture workflows under `kit/tests/fixture/workflows/` carry the same stale comment; no rule reads it, and it is corrected at the next touch of those files, not in 3b.
+
+### R3-10. The documents
+
+Piece 3 is this revision's documents: `docs/adopt-with-an-agent.md` (the generator first), `README.md`, `QUICKSTART.md` (a `kit-init` section at the top, the signer rule said once for each route), `kit/README.md`, `docs/agents-section.md`, the skill and `CHANGELOG.md`. `docs/agents-section.md` was a hand-written section that differs from the built template, so the template wins: the document now points at `kit/templates/agents/section.md` and at `kit-init --agent-files-only`, and holds no copy (§3.9's one-copy rule).
 
 ## Revision 2 (2026-11-03): the first build ratified, the three shapes ruled
 
@@ -197,7 +290,7 @@ Every refusal is one sentence ending `so nothing was written.`, printed before a
 | the current branch is the main branch | `kit-init commits the adoption on a branch for its own pull request, and this is main, so nothing was written.` (not raised with `--no-commit`) |
 | the rendered manifest fails the lint | the lint's own findings, then `The manifest kit-init would write does not pass check-manifest, so nothing was written.` A failure here is a defect of the generator, and the kit's tests exist to make it impossible (§7.3) |
 | a Python below 3.9 | `kit-init needs python3 3.9 or later, and this is <version>, so nothing was written.` |
-| a file it reads that is not UTF-8 (a stack file, a pin file, a requirements file or an append target) | `<path> is not UTF-8 text kit-init can read, so nothing was written.` (rev 2, R-1 b; AC-KI-35) |
+| a file it reads that is not UTF-8 (a stack file, a pin file, a requirements file, an append target, or `ci/KIT-VERSION`, whose tag is read before anything is written) | `<path> is not UTF-8 text kit-init can read, so nothing was written.` (rev 2, R-1 b; rev 3, R3-2; AC-KI-35) |
 
 ### 2.4 What it never does
 
@@ -438,6 +531,8 @@ After the lints, the human steps in order, one line each, numbered, with the pro
 
 The steps are numbered in sequence: when no stub was written, step 3 is not printed and the steps after it close up (rev 2, R-4 d).
 
+When `check-manifest` exited 0 and `check-escaping-reads` exited 2 (no scan root holds a test file), one step comes before step 1: `Write a first test in <the scan directories>, commit it, and run python3 ci/kit/bin/check-escaping-reads again; CI's checks job refuses this tree until you do.` The scan line is still written (rev 3, R3-4; AC-KI-39).
+
 Then one line on what was declared by hand: for each Python job, that its escaping reads are a census by hand (`kit/README.md:188`).
 
 ## 7. The templates
@@ -498,7 +593,8 @@ No template language, no `eval`, no shell: the generator is standard-library Pyt
 - **Every supported shape is generated and linted in the kit's own tests.** A new family, K-init, in `kit/tests/run` (no Docker daemon, offline through `--checksums` and the existing `docker` shim, `kit/tests/fixture/shims/docker`) generates each shape of AC-KI-30 into a fixture repository with a vendored `ci/kit` copy and holds it to: the generator's exit 0; `check-manifest` at HEAD (rules 1 to 12); `check-workflow`; `check-escaping-reads`; and the adapter's unknown-job leg run directly (`bash ci/ci-job.sh no-such-job` exits 2 with no counts line, `check-adapter`'s leg (a), `kit/bin/check-adapter:8-10`), because `check-adapter` itself needs the job image.
 - **Two shapes end to end.** `kit/tests/image` gains a family that generates the Go, Node and Postgres shape, builds its job image against the real checksums of a fixed recorded version, runs `local-ci run` for each job and then `check-adapter` for each stack job; and the same for the Python with pytest shape against a recorded python-build-standalone release (rev 2, R-5; AC-KI-36).
 - **The example as a golden output.** The fixture directory holds the example's six files for the `rottnest` shape; K-init compares its output with them, comment lines set aside, so a template that drifts from the reference adopter turns red.
-- **Plants.** `kit/tests/plants` gains planted defects for the rules a single deleted line could remove: the existing-file refusal, the Dockerfile's pin cross-check, the shim copied from anywhere but the kit's file, an unreplaced token passing, and the restore truncating by decoded length (rev 2). The three check changes of R-2 carry their own plants in piece 1b.
+- **Plants.** `kit/tests/plants` gains planted defects for the rules a single deleted line could remove: the existing-file refusal, the Dockerfile's pin cross-check, the shim copied from anywhere but the kit's file, an unreplaced token passing, and the restore truncating by decoded length (rev 2). The three check changes of R-2 carry their own plants in piece 1b. As built, eight `init` plants: those five, the UTF-8 refusal, the offline branch and the pinned Python off the image's `PATH` (the last seen by `initpy`) (rev 3, R3-1).
+- **Fixtures no adopter's runner collects (rev 3, R3-5).** The kit travels whole into every adopter at `ci/kit/`, so no file under `kit/` has a name a test runner or compiler collects by default from a repository's top (AC-KI-38): fixture sources carry `.fixture` after their real name, and the helpers that copy them into a scratch repository strip it.
 
 ## 8. The host rule
 
@@ -521,9 +617,13 @@ The README's §2.2 gains one sentence naming `kit-init` beside the two fences, a
 
 **A MINOR release.** It adds a command and templates; the manifest format stays `manifest v1`, the adapter contract, the key formula and the plan's sentences are unchanged, and nothing an adopter wrote needs to change (`kit/README.md:345`; `CONTRIBUTING.md:81-85`). Today's tag is `v1.0.0-rc.1` and no final `v1.0.0` exists. A final is tagged on the same `kit/` tree as the last candidate once an adopter ran it green (`CONTRIBUTING.md:79`), which the example has done. So the order is: `v1.0.0` on rc.1's tree, unchanged; then this work as `v1.1.0-rc.1`; then `v1.1.0` on the same tree once an adoption through `kit-init` has run green end to end. Putting `kit-init` into a `v1.0.0-rc.2` instead would make every candidate adopter re-test the 1.0 trust code for a change that does not touch it.
 
+(Rev 3, R3-8: as it happened, §12 question 6 put the fence's depth fix alone into `v1.0.0-rc.2`, and `v1.0.0` was tagged on rc.2's tree, `9e282b4f`. `kit-init` stayed out of 1.0 as ruled here and ships as `v1.1.0-rc.1`.)
+
 Later moves of the workflow template's action shas, or of the default Postgres major, are PATCH releases: they change generated output for new adopters and no interface.
 
 ### 9.2 The CHANGELOG entry
+
+As written at revision 3 (R3-7), equal to the entry in `CHANGELOG.md`; the release pull request writes the two placeholders and the date.
 
 ```markdown
 ## v1.1.0-rc.1 (unreleased)
@@ -535,16 +635,24 @@ Later moves of the workflow template's action shas, or of the default Postgres m
   with a refusing stub arm for anything else. Python 3.9 or later, standard
   library only; run once, by hand.
 - New: `kit/templates/`, the files it renders, signed with the release.
-- Changed (rev 2, R-2): `check-manifest` rule 6 accepts the path `.`, as its
-  text always said; `check-escaping-reads` passes a manifest with no
-  escaping-scan line, saying no file was scanned, and counts depth correctly
-  under a tree of `.`.
+- Changed: `check-manifest` rule 6 accepts the path `.`, as its text always
+  said. `check-escaping-reads` passes a manifest with no escaping-scan line,
+  saying no file was scanned; under a tree of `.` it counts depth, accepts a
+  declared escaping-read line and scans a `test/` directory exactly as it does
+  under a named tree.
+- Changed: no file under `kit/` has a name a test runner or compiler collects
+  from a repository's top. The kit's own fixture sources end in `.fixture`, so a
+  project whose tests run from its top never runs the kit's.
 - Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
-  formula, the plan's sentences, `check-host`'s file list and allow-list.
+  formula, the plan's sentences, `check-host`'s file list and allow-list; every
+  check but those two.
 - The proofs: the K-init family in `kit/tests/run` (every supported shape
   generated offline and held to the lint and both fences), two shapes end to
   end in `kit/tests/image` (Go, Node and Postgres; Python with pytest), and
-  planted defects in `kit/tests/plants`.
+  planted defects in `kit/tests/plants`, each seen red.
+- Proven on: linux/amd64, the kit's own CI run on the release pull request, and
+  linux/arm64, a workstation run of both end-to-end shapes at the same tree;
+  both are recorded in that pull request: `<written by the release pull request>`.
 - Moves keys: yes (every adapter-run key moves with `ci/kit`).
 - The `kit/` tree this tag names: `<written by the release pull request>`.
 - Adopter's actions: none. A project that adopted by hand may add the agent
@@ -597,7 +705,7 @@ Each is checkable by reading a file or running a command.
 - **AC-KI-25** `check-host kit/` passes unchanged, and its file list is unchanged.
 - **AC-KI-26** `kit/README.md` names `kit-init` in §1's table, §2.2 and the prerequisites, and holds no copy of the agent section's body lines.
 - **AC-KI-27** The kit repository's workflow fails when `docs/adopt-with-an-agent.md` or `kit/README.md` repeats a body line of `kit/templates/agents/section.md`, and passes when they cite its path; the guard is proven red once.
-- **AC-KI-28** Each planted defect of §7.3 turns K-init red, and only K-init.
+- **AC-KI-28** Each planted defect of §7.3 turns K-init red, and only K-init. (Rev 3, R3-1: "only K-init" holds by construction for the plants run by `tests/run`, since no other family reads `bin/kit-init` or `templates/` as code; the plant of the Python image block turns `initpy` red, K-init's end-to-end half.)
 - **AC-KI-29** The end-to-end family in `kit/tests/image` generates the Go, Node and Postgres shape, `local-ci run` passes each job, and `check-adapter` passes each stack job.
 - **AC-KI-30** K-init covers at least these shapes: Go alone; Node with vitest alone; Go, Node and Postgres (the example's); Python with pytest alone; Node without vitest (a stub); two Go directories with one toolchain; no stack at all; a stack directory of `.`. (Rev 2, R-2: the last three are green only once piece 1b has landed; on the rc.1 checks they fail at `check-escaping-reads:375-377` and `check-manifest:228`.)
 - **AC-KI-31** The CHANGELOG entry has §9.2's shape and the release is MINOR.
@@ -607,12 +715,18 @@ Each is checkable by reading a file or running a command.
 - **AC-KI-32** `check-manifest` rule 6 finds nothing for an `escaping-tree` or `escaping-scan` path of `.`, and still finds a path absent at the commit; proven red once in the manifest family.
 - **AC-KI-33** `check-escaping-reads`, given a manifest with no `escaping-scan` line, prints `The manifest names no escaping-scan line, so no file was scanned and only the escaping-read lines were checked against the keys.`, exits 0 when every `escaping-read` line is keyed with `OK: no file was scanned; <n> escaping-read lines were checked, and every one is keyed.`, and exits 1 when one is not; given an `escaping-scan` root holding no test file, it still exits 2 with `the escaping-read fence found no test files, so it would prove nothing.`; proven red once in the escaping family.
 - **AC-KI-34** Under `escaping-tree <job> .`, the fence counts a file's depth as it would the same relative position under a named tree: `db/x_test.go` calling `filepath.Join("..", "..", "x")` is a finding; proven red once in the escaping family.
-- **AC-KI-35** A file `kit-init` reads that does not decode as UTF-8 is refused with exit 2 and `<path> is not UTF-8 text kit-init can read, so nothing was written.`, and nothing is written.
+- **AC-KI-35** A file `kit-init` reads that does not decode as UTF-8 is refused with exit 2 and `<path> is not UTF-8 text kit-init can read, so nothing was written.`, and nothing is written. (Rev 3, R3-2: `ci/KIT-VERSION` among them.)
 - **AC-KI-36** The end-to-end family in `kit/tests/image` generates the Python with pytest shape against a recorded python-build-standalone release and its real checksums, and `local-ci run` passes the job with the pinned interpreter answering (not the base image's own `python3`), `pip install --require-hashes` succeeding inside the job, and a counts line whose `pytest_tests` equals the fixture's passing tests; `check-adapter` then passes the job. It runs in the kit's own workflow (amd64), and the release pull request records one green run of AC-KI-29 and AC-KI-36 on an arm64 workstation.
+
+**Added by revision 3**
+
+- **AC-KI-37** (R3-3) Under a tree of `.`, `check-escaping-reads` accepts a keyed `escaping-read` line, scans a TypeScript file under the `test/` directory of a `ts` scan root of `.`, and does not call a tree of `.` "declared by hand" when a scan root lies inside it; each proven red once in the escaping family, and K-init's `.` shape carries one declared, keyed read.
+- **AC-KI-38** (R3-5) No file under `kit/` ends in `.go`, `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` or `.cjs`, or is named `test_*.py`, `*_test.py` or `conftest.py`; a K-init case holds this over the kit under test and is red once on a planted file, and every K-init, `initgo` and `initpy` case passes on the renamed fixtures.
+- **AC-KI-39** (R3-4) For a Go or Node directory with no test file, `kit-init` writes the `escaping-scan` line, exits 1, and prints the step of §6 naming that directory before `make check`; proven red once in K-init.
 
 ## 11. Build plan
 
-Four pieces of work, in order (rev 2: piece 1 is built and ratified; piece 1b is added by R-1 and R-2; piece 2's brief is rewritten by R-7). Each names who builds it, the files it may touch, the criteria it meets and an estimate in agent tokens from the measured medians of builds of this size.
+Four pieces of work, in order (rev 2: piece 1 is built and ratified; piece 1b is added by R-1 and R-2; piece 2's brief is rewritten by R-7. Rev 3: pieces 1b, 2 and 3 are done and ratified; piece 3b is added by R3-2 to R3-5 and is the last before the tag). Each names who builds it, the files it may touch, the criteria it meets and an estimate in agent tokens from the measured medians of builds of this size.
 
 **1. The generator and its templates.** A build engineer. Files: `kit/bin/kit-init` (new), `kit/templates/**` (new), `kit/README.md` (§1 table row, §2.2 sentence, prerequisites, §7 gaining the generator route with steps 4 to 6 folded into it), `CHANGELOG.md` (the unreleased entry). Meets AC-KI-1 to AC-KI-3, AC-KI-5, AC-KI-7, AC-KI-8, AC-KI-10 to AC-KI-19, AC-KI-21 to AC-KI-26, AC-KI-31, each by the build's own run on the example's tree and on one scratch repository per stack. Estimate about 500k (range 400k to 600k): roughly 700 to 900 lines of Python and 600 lines of templates, three stacks, the lookups and the offline path.
 
@@ -648,9 +762,21 @@ What it owns, each seen red once:
 
 Estimate about 260k (range 220k to 320k): the 220k first planned, plus the Python end-to-end shape, AC-KI-9's planted failure and AC-KI-35's case.
 
-**3. The documents.** A documentation pass. Files: `docs/adopt-with-an-agent.md` (new; it cites the agent template, never copies it), the root `README.md`'s quickstart pointer to `kit-init`, `docs/kit-init.md` amended to what was built. Meets AC-KI-26 and AC-KI-27's passing half. Estimate about 100k.
+**3. The documents.** A documentation pass. Files: `docs/adopt-with-an-agent.md` (new; it cites the agent template, never copies it), the root `README.md`'s quickstart pointer to `kit-init`, `docs/kit-init.md` amended to what was built. Meets AC-KI-26 and AC-KI-27's passing half. Estimate about 100k. (Rev 3: done with revision 3, R3-10.)
 
-Total first planned about 820k, range 700k to 1.0M; from here, pieces 1b, 2 and 3 are about 510k (range 420k to 620k). `v1.1.0-rc.1` waits for all three, AC-KI-36 included (rev 2, R-5). A security read is worth asking for once the first piece lands, scoped to the generator's network lookups, its subprocess set and the signer handling.
+**3b. The four defects (rev 3).** A build engineer, against Revision 3; no new design is needed, and a question that arises mid-way stops the piece and comes back here. It writes its own red-once cases and plants, as piece 1b did. Files, and nothing else:
+
+- `kit/bin/kit-init`: `preflight_repo` (lines 830-838) reads the tag and returns it, and the late read at 1009-1010 goes (R3-2); `main`'s check loop (1030-1038) keeps each check's exit code, and `closing` (1046 onward) prints R3-4's step;
+- `kit/bin/check-escaping-reads`: the helper, used at 295, 375 and 407, and the location word at 408 (R3-3);
+- `kit/tests/fixture/init/**`: every file AC-KI-38 names renamed with `.fixture` appended, contents unchanged (R3-5);
+- `kit/tests/fam/init.sh`: `init_put` (line 47) and every other `$KI_FIX` copy strip the suffix; the cases of R3-2, R3-4 (AC-KI-39) and AC-KI-38; the `.` shape's declared read (AC-KI-37);
+- `kit/tests/image`: the `e2e` copies in `fam_initgo` and `fam_initpy` strip the suffix;
+- `kit/tests/fam/escaping.sh`: AC-KI-37's three cases;
+- `kit/tests/plants`: `:407` restored, red in the escaping family; the AC-KI-38 walk disabled, red in K-init.
+
+It does not touch `CHANGELOG.md`, `kit/README.md` or `docs/`, whose lines for it are written at revision 3; the release pull request reads them against what landed. Then: `bash kit/tests/run` under bash 3.2 and a current bash, `python3 kit/tests/plants` whole, `python3 kit/bin/check-host kit/`, and `bash kit/tests/image` on this arm64 workstation, each exit code pasted. Meets AC-KI-35 for `ci/KIT-VERSION`, AC-KI-37, AC-KI-38 and AC-KI-39. Estimate about 250k (range 200k to 320k): two small generator edits, one fence helper at three sites, about fifteen fixture renames with their copy helpers in two harnesses, about eight cases and two plants, and the full re-runs, `tests/image` cold among them because the fixtures move.
+
+Total first planned about 820k, range 700k to 1.0M; from here, pieces 1b, 2 and 3 are about 510k (range 420k to 620k). `v1.1.0-rc.1` waits for all three, AC-KI-36 included (rev 2, R-5), and for piece 3b (rev 3, R3-3 and R3-5). A security read is worth asking for once the first piece lands, scoped to the generator's network lookups, its subprocess set and the signer handling.
 
 ## 12. Open questions
 
@@ -661,6 +787,6 @@ Each has the answer this specification takes when nobody rules otherwise.
 3. **The release order.** Tag `v1.0.0` on rc.1's tree first and ship this as `v1.1.0-rc.1`, or fold it into a `v1.0.0-rc.2`? **Default: `v1.0.0` first, then `v1.1.0-rc.1`** (§9.1).
 4. **The default weekly minute.** Every generated project would run at `20 6 * * 1` unless it passes `--cron`. A minute derived from the project name would spread the load on the shared runners and keep each project stable. **Default: the example's `20 6 * * 1`**, because a value the person can read in the example is easier to reason about than a derived one; revisit if adopters report queueing.
 5. **The agent files by default.** Write both `AGENTS.md` and `CLAUDE.md` when neither exists, or only append to those already present? **Default: write both**, because a repository without them is the one an agent most needs told, and `--no-agent-files` opts out.
-6. **The fence's count at the top of a tree (found at revision 2; needs a maintainer's answer before `v1.0.0` is tagged).** `check-escaping-reads:228` counts the directories between a test file and its tree as `len(os.path.dirname(<path inside the tree>).split("/"))`, and in Python `"".split("/")` is `[""]`, so a file directly inside its tree is counted one level below it. Measured on the rc.1 fence: `api/x_test.go` calling `filepath.Join("..", "web", "x")` reads outside `api` and is not flagged; with `filepath.Join("..", "..", "web", "x")` it is flagged, reported as "a path call climbs 2 `..` from 1 below api/". The same line is in the reference implementation the fence was lifted from. The fix is one line (a file directly inside its tree counts 0) with one red-once case. It makes the fence stricter, so a project green today can turn red on upgrade, and it sits in the trust code that §9.1 keeps unchanged for `v1.0.0`. Fix it in a `v1.0.0-rc.2` carrying only that line and its case, then tag `v1.0.0` on rc.2's tree? Or tag `v1.0.0` on rc.1's tree and fix it in `v1.1.0-rc.1`, with an adopter's action in the CHANGELOG? **Default proposed: rc.2 first.** §9.1 keeps 1.0 unchanged so that candidate adopters need not re-test the trust code for an unrelated change, and this change is to the trust code itself; a final release should not knowingly carry a gap in a soundness fence. Either answer composes with R-2's depth change for `.`, which keeps the existing count.
+6. **The fence's count at the top of a tree (found at revision 2; CLOSED at revision 3, R3-8: answered "rc.2 first", shipped as `v1.0.0-rc.2`, and `v1.0.0` tagged on that tree).** `check-escaping-reads:228` counts the directories between a test file and its tree as `len(os.path.dirname(<path inside the tree>).split("/"))`, and in Python `"".split("/")` is `[""]`, so a file directly inside its tree is counted one level below it. Measured on the rc.1 fence: `api/x_test.go` calling `filepath.Join("..", "web", "x")` reads outside `api` and is not flagged; with `filepath.Join("..", "..", "web", "x")` it is flagged, reported as "a path call climbs 2 `..` from 1 below api/". The same line is in the reference implementation the fence was lifted from. The fix is one line (a file directly inside its tree counts 0) with one red-once case. It makes the fence stricter, so a project green today can turn red on upgrade, and it sits in the trust code that §9.1 keeps unchanged for `v1.0.0`. Fix it in a `v1.0.0-rc.2` carrying only that line and its case, then tag `v1.0.0` on rc.2's tree? Or tag `v1.0.0` on rc.1's tree and fix it in `v1.1.0-rc.1`, with an adopter's action in the CHANGELOG? **Default proposed: rc.2 first.** §9.1 keeps 1.0 unchanged so that candidate adopters need not re-test the trust code for an unrelated change, and this change is to the trust code itself; a final release should not knowingly carry a gap in a soundness fence. Either answer composes with R-2's depth change for `.`, which keeps the existing count.
 
-One inconsistency found while writing this, for the documentation pass: the cache-runtime action's trailing comment reads `# v3` in `kit/README.md:397` and `# v4.0.0` in `example:.github/workflows/ci.yml:123,172,213` for the same sha `04d248b8`. The template follows the example's file, since the repository's file is the one that runs (`kit/README.md:278`); the README line should be corrected to whichever release that sha is.
+One inconsistency found while writing this, for the documentation pass: the cache-runtime action's trailing comment reads `# v3` in `kit/README.md:397` and `# v4.0.0` in `example:.github/workflows/ci.yml:123,172,213` for the same sha `04d248b8`. The template follows the example's file, since the repository's file is the one that runs (`kit/README.md:278`); the README line should be corrected to whichever release that sha is. (Rev 3, R3-9: it is `v4.0.0`; `kit/README.md` now says so at both of its lines.)
