@@ -8,7 +8,107 @@
     ____ooo___ooo_____|______|____
 ```
 
-Status: specification, not yet built. It is written for the kit's maintainers and contributors. It names what `kit-init` does, what it writes and why, how its templates stay true, and how it is released. Where it cites the kit, the line numbers are those of the `v1.0.0-rc.1` tree (`kit/` tree `16d76d5c`, commit `4083f42`); where it cites the example adopter, they are those of [`quokka-ci-kit-example`](https://github.com/aames/quokka-ci-kit-example) at `8ad9623`, written `example:<path>:<line>`.
+Status: specification, built once and ratified against that build on 2026-11-03 (Revision 2, below); the next piece and the proofs follow (§11). It is written for the kit's maintainers and contributors. It names what `kit-init` does, what it writes and why, how its templates stay true, and how it is released. Where it cites the kit, the line numbers are those of the `v1.0.0-rc.1` tree (`kit/` tree `16d76d5c`, commit `4083f42`); where it cites the example adopter, they are those of [`quokka-ci-kit-example`](https://github.com/aames/quokka-ci-kit-example) at `8ad9623`, written `example:<path>:<line>`.
+
+## Revision 2 (2026-11-03): the first build ratified, the three shapes ruled
+
+The first build (`kit/bin/kit-init`, 1,083 lines, and `kit/templates/`, 35 files, at commit `c0cabe5`) was read line by line against this document, and its claims were re-run rather than taken on report, each in a scratch copy (the example read through `git archive 8ad9623`, never checked out). **Verdict: ratified as built, with two corrections to the generator and two one-line changes to the rc.1 checks, all in one bounded next piece (§11, piece 1b) that lands before the proofs.** Each ruling has its reason; the body carries markers `(rev 2, R-n)` where it changed. Line numbers of `kit-init` and the templates are those of `c0cabe5`.
+
+What was re-run:
+
+- **The golden run (AC-KI-20).** `--project rottnest --go api --node web --postgres api --checksums <the example's five values>` on the example's tree with its files removed: the manifest, the adapter, the Dockerfile, the workflow, the shim and the Makefile equal the example's with comment and blank lines set aside. `ci/allowed-signers` differs by one line, the signer the example added after its landing, which §3.8 keeps out of the landing. Both scripts are mode 0755; the shim is byte-equal to `ci/kit/hooks/pre-push.shim`.
+- **The workflow fence.** `check-workflow` on that output, under a Python with PyYAML: W-1 to W-12 hold, exit 0.
+- **The commit (AC-KI-21).** The same run with `ci/` wholly untracked: the commit held exactly the seven written paths plus `ci/kit`, `ci/KIT-VERSION` and `ci/KIT-SIGNERS`. A pathspec-limited `git status` names `ci/kit/` itself (`kit-init:996`), so the vendoring is found even when git would collapse it to `ci/`.
+- **The host rule (AC-KI-1 to AC-KI-3).** The source parses under `ast.parse(..., feature_version=(3, 9))`; its six `subprocess.run` calls have first elements `"git"`, `"docker"`, `"ssh-keygen"`, `"bash"`, `sys.executable` and `"bash"`, each a list, none with `shell` (`kit-init:102-128`); it imports `base64`, `json`, `os`, `re`, `subprocess`, `sys` and `urllib.request` and nothing else (`kit-init:30-36`); the file is mode 100755 with `#!/usr/bin/env python3`.
+- **The tokens.** `TOKENS` (`kit-init:78-87`) holds 51 names, and the 35 templates use exactly those 51: none unused, none unknown.
+- **The three shapes.** Python with pytest alone, Python without a hashed requirements file, and no stack at all are refused by `check-escaping-reads:375-377` and by nothing else; `--go .` is refused by `check-manifest:228` (once for the `escaping-tree` line, once for the `escaping-scan` line) and by nothing else.
+
+Found beyond the build's report:
+
+- **The append path's restore (R-1 a).** `read_text` (`kit-init:257-262`) opens in text mode, which turns CRLF into LF, and the failure path truncates an appended file to the length of that decoded text (`kit-init:773`). A Makefile of two CRLF lines is 16 bytes on disk and 14 decoded, so a write failure after its append would cut two of its original bytes. The success path is sound: it appends the new bytes and never rewrites the old ones (`kit-init:761-763`).
+- **A file that is not UTF-8 (R-1 b).** `read_text` catches `OSError` only (`kit-init:261`). A Makefile holding the byte `0xe9` ends the run in a `UnicodeDecodeError` traceback with exit 1, which §2.5 defines as "written, and a lint found something"; nothing was written, so the honest answer is a refusal with exit 2.
+- **The fence's depth under a tree of `.` (R-2).** `check-escaping-reads:228` takes the path inside the tree as `rel[len(tree) + 1:]`. For `.` that strips two characters, cutting into the first directory's name: under `escaping-tree go .`, `db/x_test.go` calling `filepath.Join("..", "..", "x")` is not flagged, while `dbx/x_test.go` with the same call is. The `.` shape needs this line as well as the lint's.
+- **The template count.** The build named six template files beyond §7.1's list. There are eight: `manifest/stub` and `adapter/postgres.sh` are also new. §7.1 now lists all 35 (R-3).
+- **A defect in the rc.1 fence outside this document's reach.** It is put to the maintainers as §12 question 6 and does not block this ratification.
+
+### R-1. The build against §10
+
+Ratified criterion by criterion. "Met" means met by the code as read and, where marked, by the re-run above; "proofs" means the criterion belongs to the proofs piece (§11, piece 2) and is not yet proven.
+
+| Criterion | Ruling | Evidence |
+|---|---|---|
+| AC-KI-1 | met | `kit-init:1`, `:30-36`; mode 100755 |
+| AC-KI-2 | met | re-run `ast.parse` at 3.9; the version refusal at `kit-init:38-41` |
+| AC-KI-3 | met | `kit-init:102-128`; the syntax-tree walk above |
+| AC-KI-4 | proofs | the refusals are all present (`kit-init:151-194`, `:265-406`, `:897-936`); AC-KI-35's refusal joins them |
+| AC-KI-5 | met, with correction a | the rendered manifest is linted at `kit-init:974-978` before `write_all` at `:990`; the restore is corrected by R-1 a |
+| AC-KI-6 | proofs | the offline branch returns before any fetch (`kit-init:441-471`) |
+| AC-KI-7 | met | `kit-init:458-461`, `:466-470`: each missing value refused with its URL, no network branch after `--checksums` |
+| AC-KI-8 | met | `InitDir` (`kit-init:786-818`): the state directory is removed only when this run made it; only `allowed-signers.next` survives |
+| AC-KI-9 | new, proofs | assigned by this revision to the write-failure restore (§10) |
+| AC-KI-10 | met for five shapes; three after piece 1b | the golden run; the three shapes above |
+| AC-KI-11 | met | `kit-init:587`, `:596`; the golden manifest |
+| AC-KI-12 | met | the golden `check-workflow`, exit 0; `@@CRON@@` at `manifest/head:16` and `workflow/head.yml:25` |
+| AC-KI-13 | met | `adapter/tail.sh:4`, `adapter/stub.sh:6`; neither prints a counts line |
+| AC-KI-14 | met | `kit-init:946-948`, `:956-958`; the golden `cmp` |
+| AC-KI-15 | met by construction | one `FROM` in `image/head.Dockerfile:15`; the cache directories come from each tool's `dirs` part (`image/go.Dockerfile:20-21`, `image/node.Dockerfile:21-22`), and a non-stub job of that tool declares exactly those cache kinds (`kit-init:706-708`), so the two sets are equal |
+| AC-KI-16 | met | `kit-init:980-987`, `:1029-1030`; the landing's file is the one comment line of `templates/allowed-signers` |
+| AC-KI-17 | met on success; corrected on failure | `kit-init:761-763`; R-1 a |
+| AC-KI-18 | met | `templates/agents/section.md` equals §3.9's text byte for byte; `kit-init:851-874` reads every value from `bin/keys dump HEAD`, where `check-command` is one field (`make check`), so `:865` renders it whole |
+| AC-KI-19 | met | `check_tokens` (`kit-init:877-884`) over every text in the plan |
+| AC-KI-20 | met by the re-run; the committed fixture is proofs | the golden run above |
+| AC-KI-21 | met | `kit-init:993-1007`; the untracked-`ci/` re-run |
+| AC-KI-22 | met | `kit-init:1009-1028`: four checks in order, each exit code printed, the `NOT RUN` line when PyYAML is absent |
+| AC-KI-23 | met | `kit-init:1037-1076`; numbering ruled at R-4 d |
+| AC-KI-24 | met | the generator reads `templates/`, `hooks/pre-push.shim`, `ci/KIT-VERSION`, `bin/keys` output and the adopter's own files |
+| AC-KI-25 | met | `kit/bin/check-host` is unchanged between `ae12a6c` and `c0cabe5` |
+| AC-KI-26 | met | `kit/README.md:9`, `:22`, `:74`, `:619`, `:622`; no body line of the agent section appears in either README |
+| AC-KI-27 to AC-KI-30 | proofs | §11, piece 2 |
+| AC-KI-31 | met; amended by piece 1b | `CHANGELOG.md:5-22`; the two check changes add a `Changed:` line and narrow the `Unchanged:` line (§9.2) |
+
+**Correction a (the restore).** On a failure, an appended file is truncated to the length in bytes it had on disk before the append, taken from `os.stat` before the write, and the bytes appended are computed from the file read in binary, never from newline-translated text. Why: AC-KI-17 promises every original byte, and the restore is the one path where the build can break that promise.
+
+**Correction b (a file that is not UTF-8).** Every file `kit-init` reads (a stack's `go.mod`, `package.json`, pin file or requirements file, and every append target) that does not decode as UTF-8 is a refusal, AC-KI-35: `<path> is not UTF-8 text kit-init can read, so nothing was written.` Why: an exit code is the contract (§2.5), and exit 1 after writing nothing tells the person the opposite of what happened.
+
+### R-2. The three shapes: the checks change, and AC-KI-30 stands whole
+
+**Ruling: change the two checks, one line each as the build proposed, plus the fence's depth line for `.`; AC-KI-30 keeps all eight shapes.** Reason: the lint change is a defect fix of a rule's own text, and the fence change states a true limit instead of refusing a project for something it cannot do; neither weakens what either check proves when it has something to prove.
+
+1. **`check-manifest:228`, rule 6 counts `.` as present.** The line becomes, illustratively, `[ "$p" = . ] || in_tree "$p" || finding ...`. No new sentence: every other missing path keeps the existing finding. Why: rule 6's text is "every `escaping-tree` and `escaping-scan` PATH exists at the commit" (`kit/README.md:290`), `.` exists at every commit, and git refuses `<tree>:.` as a path (`fatal: path '.' exists on disk, but not in <tree>`), so the lint was failing its own rule. `covers` already treats `.` as the whole tree (`check-manifest:99`).
+   - Red once (AC-KI-32): in the manifest family, a fixture whose manifest at HEAD holds `escaping-tree go .` and `escaping-scan go .` is held to exit 0 with no rule 6 finding; with the old line planted it fails with `escaping-tree names ., which does not exist at`. The existing case for a path that is truly absent stays red.
+2. **`check-escaping-reads:375-377`, no `escaping-scan` line is a stated pass, not a refusal.** When the manifest holds no `escaping-scan` line at all, the fence prints `The manifest names no escaping-scan line, so no file was scanned and only the escaping-read lines were checked against the keys.`, runs the declaration checks it runs today (`check-escaping-reads:395-411`), and on success ends with `OK: no file was scanned; <n> escaping-read lines were checked, and every one is keyed.` When at least one `escaping-scan` line exists and its roots hold no test file, the refusal at `:376` stands unchanged with exit 2. Why: a scan root that finds nothing is a misdeclared root, which the refusal exists to catch; a manifest with no scan root has nothing to misdeclare, still has declarations to hold to the keys, and the per-tree sentence at `:373` already says which trees are declared by hand. A pass that prints what it did not do is the design's honesty rule; a refusal there would make every Python project red in its own `checks` job for a gap in the kit.
+   - Red once (AC-KI-33): in the escaping family, (i) a manifest with no `escaping-scan` line and one keyed `escaping-read` line exits 0 and prints both sentences, and is red before the change (exit 2); (ii) the same with the declared path outside the key exits 1, so the declarations are still checked; (iii) a manifest whose one `escaping-scan` root holds no test file still exits 2 with `:376`'s sentence.
+3. **`check-escaping-reads:228`, the depth under a tree of `.`.** The path inside the tree is `rel` itself when the tree is `.`, else `rel[len(tree) + 1:]`; the depth is counted from that by the existing rule, so a file under `.` is counted exactly as the same relative position under a named tree. Why: without it the `.` shape passes rule 6 and then under-reports climbs whenever its first directory is two characters long.
+   - Red once (AC-KI-34): in the escaping family, under `escaping-tree go .`, `db/x_test.go` calling `filepath.Join("..", "..", "x")` is a finding; it is not one before the change.
+
+These ship in `v1.1.0-rc.1`, never in `v1.0.0`, which §9.1 tags on rc.1's tree unchanged. The `v1.0.0` documents therefore stay true as they are: on rc.1 a manifest with no `escaping-scan` line is refused by the fence, and a tree of `.` is refused by rule 6. The CHANGELOG entry gains `Changed: check-manifest rule 6 accepts the path ., as its text always said; check-escaping-reads passes a manifest with no escaping-scan line, saying no file was scanned, and counts depth correctly under a tree of .`, and its `Unchanged:` line no longer claims every check is untouched (§9.2). `kit/README.md:189` gains one sentence: `A manifest with no escaping-scan line has nothing scanned; the fence says so, checks the escaping-read lines against the keys and passes.`
+
+The work is piece 1b of §11.
+
+### R-3. §7.1 and §7.2 amended to the templates and tokens as built
+
+Ratified as built; §7.1 and §7.2 below are rewritten to match. Reasons: the larger token set names values that occur in several files at once (the paths line, `image-path`, `prune-keep-green`, the digest, the release tag, the pin files), which is exactly what §1 says the generator exists to keep consistent, and it is still a closed set with an unknown token and an unreplaced one both refused (`kit-init:215-221`, `:877-884`). The `@@@ <part>` section lines (`kit-init:203-212`) are ratified for the one case that needs them: a tool's image block is spread across one `RUN` (its argument lines, its pin cross-check, its two architecture arms, its download, its directories, its `PATH` entry and its `ENV` lines), and keeping one tool's parts in one file keeps that tool reviewable in one place. The rule that a line holding one token alone, whose value is empty, is dropped (`kit-init:224-226`) is written into §7.2 because it decides output.
+
+### R-4. The four interpretations
+
+- **a. A stub job gets no `pin`, `pin-source`, `cache` or `install` line and no image block. Ratified.** A `pin` line names a tool the image must carry and a probe must answer (rules 4 and 10), and a stub has no image block, so a pin there would be a claim nothing backs. The stub's manifest comment says to add those lines with the arm (`manifest/stub:3-4`). §3.1's `pin` row is amended. The census still refuses a stub whose pin file is missing or inexact (`kit-init:317-325`, `:345-353`), which is ratified too: the person needs that pin the moment they write the arm, and one edit now is cheaper than a stub that cannot be filled without one.
+- **b. `--agent-files-only` writes the two files and does not commit them. Ratified.** No check reads them, so nothing needs them committed, and the person running it may be on any branch with other work in hand; the closing sentence says to commit them in a pull request of their own (`kit-init:873`). §2.2's row is amended.
+- **c. On a write failure, created files are removed and appended files truncated to their original length. Ratified, corrected by R-1 a**: the length is the on-disk byte length. §2.3 is amended. The criterion is AC-KI-9.
+- **d. The closing steps are numbered in sequence, so step 3 disappears and the rest close up when no stub was written. Ratified.** A gap in a numbered list reads as a missing step. §6 is amended.
+
+### R-5. The Python path is proven end to end before `v1.1.0-rc.1`
+
+**Ruling: an end-to-end Python shape in `kit/tests/image` (AC-KI-36) is part of the proofs piece, and it blocks `v1.1.0-rc.1`. There is no "sketch" label route.** Reasons: a release candidate is a claim that each supported shape works, the CHANGELOG entry names Python with pytest as supported, and a generator whose first Python project fails at its first `make check` is a worse first impression than a later candidate; a label in a generated file is read after the failure, not before. The Python arm has risks no lint sees, each of which this shape exercises: the base image carries Debian's own `python3` (`kit/image/base.Dockerfile:60`), so the arm must be shown to answer with the pinned interpreter from `/usr/local/python/bin`; `pip install --require-hashes` must reach the index over the job's bridge network (`kit/bin/container:645`); the python-build-standalone archive must extract to `/usr/local/python`; and the counts line must equal the fixture's passing tests. The kit's own workflow runs `kit/tests/image` on `ubuntu-latest` (`.github/workflows/ci.yml:94,108`), which proves amd64; the release pull request also records one green run of both end-to-end families on an arm64 workstation, with its summary line, because each image is built for its own machine's architecture and the arm64 checksums are otherwise never used.
+
+If the shape cannot be made green in the proofs piece, the defect it finds is fixed before the tag, and the tag waits.
+
+### R-6. The asset page bound of ten releases is ratified
+
+`PBS_RELEASES` asks for the ten most recent releases (`kit-init:67`). Ratified. Reasons: the build's run timed out at `per_page=100` with about 990 assets a release, so a larger page is not available inside the 30-second bound (`kit-init:425`); and python-build-standalone builds only the newest patch of each CPython minor in each release, so a pin missing from the ten newest releases is an old patch that a larger page would seldom rescue. That case is refused with the URL and the `--checksums` route (`kit-init:476-479`), which is the documented path. §4.1 is amended.
+
+### R-7. The proofs piece's brief
+
+Written into §11, piece 2. It owns AC-KI-4, AC-KI-6, AC-KI-9, AC-KI-20's committed fixture, AC-KI-27 to AC-KI-30, AC-KI-35's case and AC-KI-36, each seen red once. It starts after piece 1b has landed, because AC-KI-30's three shapes are green only then.
 
 ## 1. Purpose and scope
 
@@ -67,7 +167,7 @@ Run at the top of a working copy, on a branch that is not the manifest's `main-b
 | `--checksums FILE` | a file of `<64 hex>  <name>` lines | the toolchain checksums and the service digest, read from the file instead of fetched (§4.3) | fetched |
 | `--no-commit` | nothing | the files are written and not committed; the lints then run on the working files (§5) | commit |
 | `--no-agent-files` | nothing | neither `AGENTS.md` nor `CLAUDE.md` is written or appended to | both written |
-| `--agent-files-only` | nothing; refuses every other flag | only the two agent sections, their values read from the committed manifest through `bin/keys dump HEAD` (`kit/README.md:13`), for a project that adopted by hand or before this command existed | off |
+| `--agent-files-only` | nothing; refuses every other flag | only the two agent sections, their values read from the committed manifest through `bin/keys dump HEAD` (`kit/README.md:13`), for a project that adopted by hand or before this command existed; it writes them and does not commit them (rev 2, R-4 b) | off |
 
 **Job names.** `JOB` defaults to the directory with `/` written as `-` (`services/api` gives `services-api`), and to the stack's name for `.` (`go`, `node`, `python`). It must be a manifest NAME (`kit/README.md:135`). The generator also declares two jobs of its own, the always-on `checks` and the kit job `kit`, and writes a workflow job `prune`, so `checks`, `kit` and `prune` are refused as stack job names, as are `image` and `base`, which the manifest itself refuses (`kit/README.md:137`). Why fixed names for the two kit jobs: they are the example's (`example:ci/manifest:11,13`) and every reader of the kit's documents meets them there; a project that wants others renames them in its own pull request later, and the lints hold the rename.
 
@@ -75,7 +175,7 @@ Run at the top of a working copy, on a branch that is not the manifest's `main-b
 
 ### 2.3 The refusals
 
-Every refusal is one sentence ending `so nothing was written.`, printed before any file is touched, with exit 2. The generator renders every file in memory first, then checks every refusal, then writes; a write that fails part way removes the files this run created and nothing else.
+Every refusal is one sentence ending `so nothing was written.`, printed before any file is touched, with exit 2. The generator renders every file in memory first, then checks every refusal, then writes; a write that fails part way removes the files this run created, truncates each file it appended to back to the length in bytes that file had on disk before the run, and touches nothing else (rev 2, R-1 a, R-4 c).
 
 | Refusal | Sentence (the shape; the build may polish the words) |
 |---|---|
@@ -97,6 +197,7 @@ Every refusal is one sentence ending `so nothing was written.`, printed before a
 | the current branch is the main branch | `kit-init commits the adoption on a branch for its own pull request, and this is main, so nothing was written.` (not raised with `--no-commit`) |
 | the rendered manifest fails the lint | the lint's own findings, then `The manifest kit-init would write does not pass check-manifest, so nothing was written.` A failure here is a defect of the generator, and the kit's tests exist to make it impossible (§7.3) |
 | a Python below 3.9 | `kit-init needs python3 3.9 or later, and this is <version>, so nothing was written.` |
+| a file it reads that is not UTF-8 (a stack file, a pin file, a requirements file or an append target) | `<path> is not UTF-8 text kit-init can read, so nothing was written.` (rev 2, R-1 b; AC-KI-35) |
 
 ### 2.4 What it never does
 
@@ -135,11 +236,11 @@ Written from `kit/templates/manifest/` in the order of the example (`example:ci/
 | `job` | `checks always-on`, each stack job `local`, `kit local` | flags |
 | `paths <job>` | its directory, then every `image-path` entry outside `ci` that its directory does not already cover, then `ci` | rules 3 and 9 (`kit/bin/check-manifest:150-158,259-264`): `ci` covers the kit, the manifest, the adapter, the image and the signers file; the other jobs' pin files are image inputs. This reproduces `paths api api web/.nvmrc ci` (`example:ci/manifest:37`) |
 | `paths checks`, `paths kit` | `.`, `ci` | rules 2 and 3 (`kit/bin/check-manifest:134,162-165`) |
-| `pin <job> <tool>` | `go`, `node` or `python` | one per stack job |
+| `pin <job> <tool>` | `go`, `node` or `python` | one per stack job that is not a stub; a stub gets no `pin`, `pin-source`, `cache` or `install` line, and its manifest comment says to add them with the arm (rev 2, R-4 a) |
 | `count <job> ...` | Go `go_packages go_tests`; Node `vitest_files vitest_tests`; Python `pytest_tests`; a stub `tests`; the kit job `kit_cases` | the arm's counts line (§3.2); the kit job's line is fixed (`kit/README.md:172`) |
 | `install <job> npm-ci <dir>` | for a Node job whose directory holds `package-lock.json` | the one install kind (`kit/README.md:173`); without a lockfile the arm is a stub (§3.2) |
 | `service` | `service <job> postgres image postgres:<major>@sha256:<digest> url-env <PROJECT>_TEST_PG_URL flag fsync=off flag synchronous_commit=off` | `--postgres`; the digest from §4.2; the line is the example's (`example:ci/manifest:47`) |
-| `cache` | Go `gomod gobuild`; Node `npm`; Python none | the three kinds (`kit/README.md:177`); Python has no cache kind in `manifest v1`, so its runs install cold (§3.2) |
+| `cache` | Go `gomod gobuild`; Node `npm`; Python none; a stub none (rev 2, R-4 a) | the three kinds (`kit/README.md:177`); Python has no cache kind in `manifest v1`, so its runs install cold (§3.2) |
 | `pin-source` | `go toolchain-line <dir>/go.mod`; `node first-line <dir>/.nvmrc` (or `.node-version`); `python first-line <dir>/.python-version` | the three kinds (`kit/README.md:185`); one line per tool, from the first directory of that stack (§2.2) |
 | `probe` | `go first-line go env GOVERSION`; `node first-line node --version`; `python version-flag python3` | the example's two (`example:ci/manifest:53-54`); for Python, `version-flag` reads `Python 3.12.7` as `3.12.7` (`kit/README.md:186`) where `first-line` would read the whole line |
 | `escaping-tree <job> <dir>` | each stack job | the fence's trees (`kit/README.md:179`) |
@@ -282,7 +383,7 @@ The generator's only network acts, each over HTTPS by Python's `urllib`, or thro
 |---|---|---|
 | Go tarball sha256, both architectures | `https://go.dev/dl/?mode=json&include=all`, the `sha256` of the two `linux-amd64` and `linux-arm64` archive entries of the version | the Go project's own published checksums |
 | Node tarball sha256, both architectures | `https://nodejs.org/dist/v<V>/SHASUMS256.txt`, the `linux-x64.tar.xz` and `linux-arm64.tar.xz` lines | the Node project's own checksum file |
-| Python tarball sha256 and its release tag | `https://api.github.com/repos/astral-sh/python-build-standalone/releases` (unauthenticated, the most recent page) to find the newest release carrying `cpython-<V>+<tag>-...-install_only_stripped.tar.gz` for both architectures, then that release's `SHA256SUMS` | CPython publishes no Linux binary; this project's builds are the relocatable ones the Python tool ecosystem installs, with a checksum file per release. §12 asks whether the kit accepts it |
+| Python tarball sha256 and its release tag | `https://api.github.com/repos/astral-sh/python-build-standalone/releases` (unauthenticated, the ten most recent releases, `per_page=10`; rev 2, R-6) to find the newest release carrying `cpython-<V>+<tag>-...-install_only_stripped.tar.gz` for both architectures, then that release's `SHA256SUMS` | CPython publishes no Linux binary; this project's builds are the relocatable ones the Python tool ecosystem installs, with a checksum file per release. §12 asks whether the kit accepts it |
 | Postgres image digest | `docker buildx imagetools inspect postgres:<major>`, the index digest on its `Digest:` line | the multi-architecture index, so a Mac and the runner pull the same image name by one digest, as the base does (`kit/image/base.Dockerfile:10-12`) |
 
 Nothing is computed by downloading a tarball and hashing it: a hash of what the generator happened to receive proves nothing about what the project released.
@@ -335,21 +436,38 @@ After the lints, the human steps in order, one line each, numbered, with the pro
 11. After it merges, add your signer in a pull request of its own: `<the line>`, fingerprint `<SHA256:...>` (from `--signer`; without it, the command that makes the line from your public key).
 12. Read the summary of the first scheduled run on its day (`--cron`'s day and time, UTC).
 
+The steps are numbered in sequence: when no stub was written, step 3 is not printed and the steps after it close up (rev 2, R-4 d).
+
 Then one line on what was declared by hand: for each Python job, that its escaping reads are a census by hand (`kit/README.md:188`).
 
 ## 7. The templates
 
 ### 7.1 Where they live
 
-`kit/templates/` inside the vendored tree, so every template is part of the `kit/` tree a release signs and `kit-update` verifies (`kit/README.md:347-357`), and `ci/kit/templates/` in an adopter. One file per output file and per stack part:
+`kit/templates/` inside the vendored tree, so every template is part of the `kit/` tree a release signs and `kit-update` verifies (`kit/README.md:347-357`), and `ci/kit/templates/` in an adopter. As built, 35 files (rev 2, R-3; the first list here named 27, and the build added eight):
 
 ```
 kit/templates/
-  manifest/head, manifest/go, manifest/node, manifest/python, manifest/postgres, manifest/tail
-  adapter/head.sh, adapter/go.sh, adapter/node-vitest.sh, adapter/python-pytest.sh, adapter/stub.sh, adapter/tail.sh
-  image/head.Dockerfile, image/go.Dockerfile, image/node.Dockerfile, image/python.Dockerfile, image/tail.Dockerfile
-  workflow/head.yml, workflow/local-job.yml, workflow/cache-gomod.yml, workflow/cache-gobuild.yml,
-    workflow/cache-npm.yml, workflow/kit-job.yml, workflow/prune.yml
+  manifest/head, manifest/tail                  the fixed lines and the grouped lines' frame
+  manifest/go, manifest/node, manifest/python   one stack job's lines
+  manifest/stub                                 a stub job's lines
+  manifest/node-npm-ci                          the install line, for a Node job with a lockfile
+  manifest/node-scan                            the ts escaping-scan line, for every Node job
+  manifest/postgres                             the service line
+  adapter/head.sh, adapter/tail.sh              the helpers; the dispatching case
+  adapter/case.sh                               one case line per job, rendered into the tail
+  adapter/go.sh, adapter/node-vitest.sh, adapter/python-pytest.sh, adapter/stub.sh
+  adapter/node-tsc.sh                           the tsc step, when tsconfig.json exists
+  adapter/postgres.sh                           the URL variable's refusal, for a job with a service
+  image/head.Dockerfile, image/tail.Dockerfile  the base FROM; the job user
+  image/run.Dockerfile                          the one RUN and ENV that every tool's parts fill
+  image/go.Dockerfile, image/node.Dockerfile, image/python.Dockerfile
+                                                one tool's parts, in @@@ sections (§7.2)
+  workflow/head.yml                             the triggers and the always-on job
+  workflow/output.yml                           one output pair per job, in @@@ sections
+  workflow/local-job.yml                        one W-7 job per stack job
+  workflow/cache-gomod.yml, workflow/cache-gobuild.yml, workflow/cache-npm.yml
+  workflow/kit-job.yml, workflow/prune.yml
   Makefile.check
   allowed-signers
   agents/section.md
@@ -359,14 +477,28 @@ The shim is not here: it is copied from `kit/hooks/pre-push.shim` (§3.5).
 
 ### 7.2 Substitution
 
-A closed set of `@@NAME@@` tokens (`@@PROJECT@@`, `@@PROJECT_UPPER@@`, `@@JOB@@`, `@@DIR@@`, `@@JOBS@@`, `@@CRON@@`, `@@MAIN@@`, `@@ADAPTER@@`, `@@WORKFLOW@@`, `@@CHECK@@`, `@@SIGNERS@@`, and per tool `@@VERSION@@`, `@@SHA256_AMD64@@`, `@@SHA256_ARM64@@`), replaced by plain string substitution; a template part that repeats (an output line per job, a step per cache) is a separate file rendered once per item. No template language, no `eval`, no shell: the generator is standard-library Python and a token left unreplaced after rendering is a defect it refuses on (exit 2). Why so plain: a template engine would be a dependency on every workstation, and logic inside templates is code the lints cannot see.
+A closed set of `@@NAME@@` tokens, replaced by plain string substitution (rev 2, R-3: the first list here named 14, too few to express values that appear in several files at once). As built, 51 names, each used by some template and none outside the set (`kit/bin/kit-init:78-87`):
+
+- the project and its fixed names: `PROJECT`, `PROJECT_UPPER`, `MAIN`, `CRON`, `ADAPTER`, `WORKFLOW`, `SIGNERS`, `CHECK`;
+- a job: `JOB`, `FN` (the job with `-` written `_`, for the arm's function name), `DIR`, `PATHS`, `PIN_FILE`, `PIN_BASE`, `SCAN_DIR`, `LOCKFILE`, `REQUIREMENTS`, `NEED_BINS`, `TSC_STEP`, `SERVICE_CHECK`;
+- lists over all jobs: `JOBS`, `KEEP_GREEN`, `IMAGE_PATHS`, `CASES`, `OUTPUTS`, `CACHES`, and the manifest's grouped lines `LINES_JOB`, `LINES_PATHS`, `LINES_PIN`, `LINES_COUNT`, `LINES_INSTALL`, `LINES_SERVICE`, `LINES_CACHE`, `LINES_PIN_SOURCE`, `LINES_PROBE`, `LINES_ESCAPING_TREE`, `LINES_ESCAPING_SCAN`;
+- a tool and a service: `VERSION`, `SHA256_AMD64`, `SHA256_ARM64`, `PBS_TAG`, `DIGEST`;
+- the image's assembled parts: `ARGS`, `PIN_FILES`, `CROSS_CHECKS`, `AMD64`, `ARM64`, `TOOL_NAMES`, `FETCH`, `FINISH`, `ENV`.
+
+Three rules decide output, each enforced in the generator:
+
+1. **A token outside the set is a defect of the templates**, refused with exit 2 before anything is written (`kit-init:215-221`); **a token left unreplaced** in any file the run would write is refused the same way (`kit-init:877-884`).
+2. **A line that is one token alone, whose value is empty, is dropped** (`kit-init:224-226`), so an absent part leaves no blank line behind.
+3. **A part that repeats is rendered once per item.** Most such parts are a file of their own (a job's manifest lines, an arm, a case line, a cache step). Two kinds of template hold several named parts in one file, each part opening with a line `@@@ <part>` that is read as data, never output (`kit-init:203-212`): a tool's image block (`name`, `args`, `check`, `amd64`, `arm64`, `fetch`, `tmp`, `dirs`, `path`, `env-comment`, `env`), whose parts are spread across the one `RUN` and `ENV` of `image/run.Dockerfile`, so keeping one tool's parts in one file keeps that tool reviewable in one place; and `workflow/output.yml` (`decision`, `key`). A `@@@` line is a part header only in those four files.
+
+No template language, no `eval`, no shell: the generator is standard-library Python. Why so plain: a template engine would be a dependency on every workstation, and logic inside templates is code the lints cannot see.
 
 ### 7.3 How they stay true
 
 - **Every supported shape is generated and linted in the kit's own tests.** A new family, K-init, in `kit/tests/run` (no Docker daemon, offline through `--checksums` and the existing `docker` shim, `kit/tests/fixture/shims/docker`) generates each shape of AC-KI-30 into a fixture repository with a vendored `ci/kit` copy and holds it to: the generator's exit 0; `check-manifest` at HEAD (rules 1 to 12); `check-workflow`; `check-escaping-reads`; and the adapter's unknown-job leg run directly (`bash ci/ci-job.sh no-such-job` exits 2 with no counts line, `check-adapter`'s leg (a), `kit/bin/check-adapter:8-10`), because `check-adapter` itself needs the job image.
-- **One shape end to end.** `kit/tests/image` gains a family that generates the Go, Node and Postgres shape, builds its job image against the real checksums of a fixed recorded version, runs `local-ci run` for each job and then `check-adapter` for each stack job.
+- **Two shapes end to end.** `kit/tests/image` gains a family that generates the Go, Node and Postgres shape, builds its job image against the real checksums of a fixed recorded version, runs `local-ci run` for each job and then `check-adapter` for each stack job; and the same for the Python with pytest shape against a recorded python-build-standalone release (rev 2, R-5; AC-KI-36).
 - **The example as a golden output.** The fixture directory holds the example's six files for the `rottnest` shape; K-init compares its output with them, comment lines set aside, so a template that drifts from the reference adopter turns red.
-- **Plants.** `kit/tests/plants` gains planted defects for the rules a single deleted line could remove: the existing-file refusal, the Dockerfile's pin cross-check, the shim copied from anywhere but the kit's file, an unreplaced token passing.
+- **Plants.** `kit/tests/plants` gains planted defects for the rules a single deleted line could remove: the existing-file refusal, the Dockerfile's pin cross-check, the shim copied from anywhere but the kit's file, an unreplaced token passing, and the restore truncating by decoded length (rev 2). The three check changes of R-2 carry their own plants in piece 1b.
 
 ## 8. The host rule
 
@@ -403,11 +535,16 @@ Later moves of the workflow template's action shas, or of the default Postgres m
   with a refusing stub arm for anything else. Python 3.9 or later, standard
   library only; run once, by hand.
 - New: `kit/templates/`, the files it renders, signed with the release.
+- Changed (rev 2, R-2): `check-manifest` rule 6 accepts the path `.`, as its
+  text always said; `check-escaping-reads` passes a manifest with no
+  escaping-scan line, saying no file was scanned, and counts depth correctly
+  under a tree of `.`.
 - Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
   formula, the plan's sentences, `check-host`'s file list and allow-list.
 - The proofs: the K-init family in `kit/tests/run` (every supported shape
-  generated offline and held to the lint and both fences), one shape end to end
-  in `kit/tests/image`, and planted defects in `kit/tests/plants`.
+  generated offline and held to the lint and both fences), two shapes end to
+  end in `kit/tests/image` (Go, Node and Postgres; Python with pytest), and
+  planted defects in `kit/tests/plants`.
 - Moves keys: yes (every adapter-run key moves with `ci/kit`).
 - The `kit/` tree this tag names: `<written by the release pull request>`.
 - Adopter's actions: none. A project that adopted by hand may add the agent
@@ -432,6 +569,7 @@ Each is checkable by reading a file or running a command.
 - **AC-KI-6** With `--checksums`, no network is used: the K-init family runs with no network and the `curl` shim unreachable, and passes.
 - **AC-KI-7** A value missing from `--checksums` is refused with its URL; there is no fallback to the network.
 - **AC-KI-8** Nothing is written outside the working copy and `<git common dir>/<project>-ci/init/`; at exit that directory holds at most `allowed-signers.next`.
+- **AC-KI-9** (rev 2, R-1 a) A write failure planted part way through the writes leaves every file the run created removed and every file it appended to byte-equal to its original, a Makefile with CRLF line endings among them, and the run exits 2 with its sentence.
 
 **What it writes**
 
@@ -461,29 +599,68 @@ Each is checkable by reading a file or running a command.
 - **AC-KI-27** The kit repository's workflow fails when `docs/adopt-with-an-agent.md` or `kit/README.md` repeats a body line of `kit/templates/agents/section.md`, and passes when they cite its path; the guard is proven red once.
 - **AC-KI-28** Each planted defect of §7.3 turns K-init red, and only K-init.
 - **AC-KI-29** The end-to-end family in `kit/tests/image` generates the Go, Node and Postgres shape, `local-ci run` passes each job, and `check-adapter` passes each stack job.
-- **AC-KI-30** K-init covers at least these shapes: Go alone; Node with vitest alone; Go, Node and Postgres (the example's); Python with pytest alone; Node without vitest (a stub); two Go directories with one toolchain; no stack at all; a stack directory of `.`.
+- **AC-KI-30** K-init covers at least these shapes: Go alone; Node with vitest alone; Go, Node and Postgres (the example's); Python with pytest alone; Node without vitest (a stub); two Go directories with one toolchain; no stack at all; a stack directory of `.`. (Rev 2, R-2: the last three are green only once piece 1b has landed; on the rc.1 checks they fail at `check-escaping-reads:375-377` and `check-manifest:228`.)
 - **AC-KI-31** The CHANGELOG entry has §9.2's shape and the release is MINOR.
+
+**Added by revision 2**
+
+- **AC-KI-32** `check-manifest` rule 6 finds nothing for an `escaping-tree` or `escaping-scan` path of `.`, and still finds a path absent at the commit; proven red once in the manifest family.
+- **AC-KI-33** `check-escaping-reads`, given a manifest with no `escaping-scan` line, prints `The manifest names no escaping-scan line, so no file was scanned and only the escaping-read lines were checked against the keys.`, exits 0 when every `escaping-read` line is keyed with `OK: no file was scanned; <n> escaping-read lines were checked, and every one is keyed.`, and exits 1 when one is not; given an `escaping-scan` root holding no test file, it still exits 2 with `the escaping-read fence found no test files, so it would prove nothing.`; proven red once in the escaping family.
+- **AC-KI-34** Under `escaping-tree <job> .`, the fence counts a file's depth as it would the same relative position under a named tree: `db/x_test.go` calling `filepath.Join("..", "..", "x")` is a finding; proven red once in the escaping family.
+- **AC-KI-35** A file `kit-init` reads that does not decode as UTF-8 is refused with exit 2 and `<path> is not UTF-8 text kit-init can read, so nothing was written.`, and nothing is written.
+- **AC-KI-36** The end-to-end family in `kit/tests/image` generates the Python with pytest shape against a recorded python-build-standalone release and its real checksums, and `local-ci run` passes the job with the pinned interpreter answering (not the base image's own `python3`), `pip install --require-hashes` succeeding inside the job, and a counts line whose `pytest_tests` equals the fixture's passing tests; `check-adapter` then passes the job. It runs in the kit's own workflow (amd64), and the release pull request records one green run of AC-KI-29 and AC-KI-36 on an arm64 workstation.
 
 ## 11. Build plan
 
-Three pieces of work, in order. Each names who builds it, the files it may touch, the criteria it meets and an estimate in agent tokens from the measured medians of builds of this size.
+Four pieces of work, in order (rev 2: piece 1 is built and ratified; piece 1b is added by R-1 and R-2; piece 2's brief is rewritten by R-7). Each names who builds it, the files it may touch, the criteria it meets and an estimate in agent tokens from the measured medians of builds of this size.
 
 **1. The generator and its templates.** A build engineer. Files: `kit/bin/kit-init` (new), `kit/templates/**` (new), `kit/README.md` (§1 table row, §2.2 sentence, prerequisites, §7 gaining the generator route with steps 4 to 6 folded into it), `CHANGELOG.md` (the unreleased entry). Meets AC-KI-1 to AC-KI-3, AC-KI-5, AC-KI-7, AC-KI-8, AC-KI-10 to AC-KI-19, AC-KI-21 to AC-KI-26, AC-KI-31, each by the build's own run on the example's tree and on one scratch repository per stack. Estimate about 500k (range 400k to 600k): roughly 700 to 900 lines of Python and 600 lines of templates, three stacks, the lookups and the offline path.
 
-**2. The proofs.** A test engineer, tests only. Files: `kit/tests/fam/init.sh` (new), its entry in `kit/tests/run`'s family list (`kit/tests/run:26`), `kit/tests/fixture/init/**` (the shapes' inputs, the golden example files, the checksums file), a family in `kit/tests/image`, plants in `kit/tests/plants`, and the kit workflow's guard for AC-KI-27 (`.github/workflows/ci.yml`, a step in `guards`). Meets AC-KI-4, AC-KI-6, AC-KI-20, AC-KI-27 to AC-KI-30, each criterion seen red once. Estimate about 220k (range 200k to 300k).
+**1b. The corrections and the two check changes (rev 2).** A build engineer, against this document's Revision 2; no new design is needed, and a question that arises mid-way stops the piece and comes back here. Files, and nothing else:
+
+- `kit/bin/check-manifest`: line 228 only (R-2 item 1);
+- `kit/bin/check-escaping-reads`: line 228 (R-2 item 3), lines 375-377 and the closing `OK:` line at 419 (R-2 item 2), and the exit-code paragraph of its docstring (lines 55-58) to say that no `escaping-scan` line is a pass;
+- `kit/bin/kit-init`: `read_text` (lines 257-262) and `write_all` (lines 738-784) only (R-1 a and b);
+- `kit/tests/fam/manifest.sh` and `kit/tests/fam/escaping.sh`: the red-once cases of AC-KI-32, AC-KI-33 and AC-KI-34, each seen failing on the unchanged line before the change;
+- `kit/tests/plants`: three plants, each turning its family red: the `.` arm removed from `check-manifest:228`; the no-scan branch restored to exit 2; the depth under `.` restored to `rel[len(tree) + 1:]`;
+- `kit/README.md`: line 189 gains R-2's one sentence;
+- `CHANGELOG.md`: the `Changed:` line of §9.2.
+
+Meets AC-KI-32 to AC-KI-34 with their proofs, and AC-KI-9's and AC-KI-35's code (their proofs are piece 2's). The harness count rises from 788 by the new cases, and every existing case stays green. Estimate about 150k (range 120k to 200k): three one-line check changes, two generator functions, six or seven cases and three plants.
+
+**2. The proofs.** A test engineer, tests only, after piece 1b has landed (AC-KI-30's last three shapes are green only then). Files, and nothing else: `kit/tests/fam/init.sh` (new, the K-init family); its entry in `kit/tests/run`'s family list (`kit/tests/run:26`); `kit/tests/fixture/init/**` (new); two families in `kit/tests/image`; five plants in `kit/tests/plants`; one step in the `guards` job of the kit's `.github/workflows/ci.yml`.
+
+The fixture: a minimal source tree for each shape of AC-KI-30 (a Go module with one test, a Node package with vitest, a lockfile and one test, a Python directory with `.python-version` and a hashed `requirements.txt` naming pytest and its dependencies, a Node package without vitest); the example's six files at `8ad9623` (read with `git show`) as the golden output; one checksums file holding the example's five values and a recorded python-build-standalone release's two checksums; a Makefile with CRLF line endings; a file holding a byte that is not UTF-8.
+
+What it owns, each seen red once:
+
+- **AC-KI-4**: one case per refusal row of §2.3, AC-KI-35's included, each seeing exit 2, its sentence, and the working tree, the index and HEAD unchanged (the porcelain status, `git write-tree` and `git rev-parse HEAD` equal before and after).
+- **AC-KI-6**: the whole family runs with `--checksums`, the existing `docker` shim (`kit/tests/fixture/shims/docker`), the `curl` shim unreachable, and `https_proxy` and `HTTPS_PROXY` set to a closed local port, so any lookup that escaped the offline path would fail; it passes.
+- **AC-KI-9**: a write failure planted part way (a later output's directory made read-only), with the CRLF Makefile as an append target: every created file gone, the Makefile `cmp`-equal to its original, exit 2 with its sentence.
+- **AC-KI-20**: the golden fixture committed, and K-init comparing its rottnest output with it, comment and blank lines set aside.
+- **AC-KI-27**: the guard step, red once on a planted copy of a body line of `kit/templates/agents/section.md` in `kit/README.md`, green when the documents cite the path; it passes while `docs/adopt-with-an-agent.md` does not yet exist.
+- **AC-KI-28**: the five plants (the existing-file refusal removed; one tool's pin cross-check removed from its `check` part; the shim read from a path other than `ci/kit/hooks/pre-push.shim`; `check_tokens` disabled so an unreplaced token passes; the restore truncating by decoded length), each turning K-init red, and every other family green against the same planted copy.
+- **AC-KI-29**: the Go, Node and Postgres shape end to end, as §7.3 says.
+- **AC-KI-30**: all eight shapes, each held to the generator's exit 0, `check-manifest` at HEAD (rules 1 to 12), `check-workflow`, `check-escaping-reads`, and `bash ci/ci-job.sh no-such-job` exiting 2 with no counts line; the stub shape's arm exiting 2 with its sentence and no counts line.
+- **AC-KI-35**: its K-init case.
+- **AC-KI-36**: the Python with pytest shape end to end, as written in §10.
+- **§8's two rules** (AC-KI-2, AC-KI-3) as committed syntax-tree tests in K-init, which §8 requires and the build proved only by its own run.
+
+Estimate about 260k (range 220k to 320k): the 220k first planned, plus the Python end-to-end shape, AC-KI-9's planted failure and AC-KI-35's case.
 
 **3. The documents.** A documentation pass. Files: `docs/adopt-with-an-agent.md` (new; it cites the agent template, never copies it), the root `README.md`'s quickstart pointer to `kit-init`, `docs/kit-init.md` amended to what was built. Meets AC-KI-26 and AC-KI-27's passing half. Estimate about 100k.
 
-Total about 820k, range 700k to 1.0M. A security read is worth asking for once the first piece lands, scoped to the generator's network lookups, its subprocess set and the signer handling.
+Total first planned about 820k, range 700k to 1.0M; from here, pieces 1b, 2 and 3 are about 510k (range 420k to 620k). `v1.1.0-rc.1` waits for all three, AC-KI-36 included (rev 2, R-5). A security read is worth asking for once the first piece lands, scoped to the generator's network lookups, its subprocess set and the signer handling.
 
 ## 12. Open questions
 
 Each has the answer this specification takes when nobody rules otherwise.
 
-1. **The Python toolchain's source.** CPython publishes no Linux binary tarball. Accept python-build-standalone's builds, verified against that project's per-release `SHA256SUMS` (§4.1)? Or leave Python's image block as a stub the person fills in, with only the arm and the manifest lines generated? **Default: accept python-build-standalone**, named in the generated Dockerfile's comment so the reviewer sees the source.
+1. **The Python toolchain's source.** (Rev 2: built on the default and ratified; the path is proven end to end before the tag, R-5.) CPython publishes no Linux binary tarball. Accept python-build-standalone's builds, verified against that project's per-release `SHA256SUMS` (§4.1)? Or leave Python's image block as a stub the person fills in, with only the arm and the manifest lines generated? **Default: accept python-build-standalone**, named in the generated Dockerfile's comment so the reviewer sees the source.
 2. **The signer in the landing.** `--signer` could write the signer's line straight into `ci/allowed-signers`, saving the second full CI run DESIGN §9 step 4 costs. That puts the adoption's one trust decision inside a large generated pull request. **Default: never in the landing**; the line is printed and kept for its own pull request (§3.8).
 3. **The release order.** Tag `v1.0.0` on rc.1's tree first and ship this as `v1.1.0-rc.1`, or fold it into a `v1.0.0-rc.2`? **Default: `v1.0.0` first, then `v1.1.0-rc.1`** (§9.1).
 4. **The default weekly minute.** Every generated project would run at `20 6 * * 1` unless it passes `--cron`. A minute derived from the project name would spread the load on the shared runners and keep each project stable. **Default: the example's `20 6 * * 1`**, because a value the person can read in the example is easier to reason about than a derived one; revisit if adopters report queueing.
 5. **The agent files by default.** Write both `AGENTS.md` and `CLAUDE.md` when neither exists, or only append to those already present? **Default: write both**, because a repository without them is the one an agent most needs told, and `--no-agent-files` opts out.
+6. **The fence's count at the top of a tree (found at revision 2; needs a maintainer's answer before `v1.0.0` is tagged).** `check-escaping-reads:228` counts the directories between a test file and its tree as `len(os.path.dirname(<path inside the tree>).split("/"))`, and in Python `"".split("/")` is `[""]`, so a file directly inside its tree is counted one level below it. Measured on the rc.1 fence: `api/x_test.go` calling `filepath.Join("..", "web", "x")` reads outside `api` and is not flagged; with `filepath.Join("..", "..", "web", "x")` it is flagged, reported as "a path call climbs 2 `..` from 1 below api/". The same line is in the reference implementation the fence was lifted from. The fix is one line (a file directly inside its tree counts 0) with one red-once case. It makes the fence stricter, so a project green today can turn red on upgrade, and it sits in the trust code that §9.1 keeps unchanged for `v1.0.0`. Fix it in a `v1.0.0-rc.2` carrying only that line and its case, then tag `v1.0.0` on rc.2's tree? Or tag `v1.0.0` on rc.1's tree and fix it in `v1.1.0-rc.1`, with an adopter's action in the CHANGELOG? **Default proposed: rc.2 first.** §9.1 keeps 1.0 unchanged so that candidate adopters need not re-test the trust code for an unrelated change, and this change is to the trust code itself; a final release should not knowingly carry a gap in a soundness fence. Either answer composes with R-2's depth change for `.`, which keeps the existing count.
 
 One inconsistency found while writing this, for the documentation pass: the cache-runtime action's trailing comment reads `# v3` in `kit/README.md:397` and `# v4.0.0` in `example:.github/workflows/ci.yml:123,172,213` for the same sha `04d248b8`. The template follows the example's file, since the repository's file is the one that runs (`kit/README.md:278`); the README line should be corrected to whichever release that sha is.
