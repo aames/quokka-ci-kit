@@ -26,8 +26,12 @@ One entry per release, newest first. Each entry names the tag, the date, whether
   with a refusing stub arm for anything else. Python 3.9 or later, standard
   library only; run once, by hand.
 - New: `kit/templates/`, the files it renders, signed with the release.
+- Changed: check-manifest rule 6 accepts the path ., as its text always said;
+  check-escaping-reads passes a manifest with no escaping-scan line, saying no
+  file was scanned, and counts depth correctly under a tree of .
 - Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
-  formula, the plan's sentences, `check-host`'s file list and allow-list.
+  formula, the plan's sentences, `check-host`'s file list and allow-list; every
+  check but those two.
 - The proofs: the K-init family in `kit/tests/run` (every supported shape
   generated offline and held to the lint and both fences), one shape end to end
   in `kit/tests/image`, and planted defects in `kit/tests/plants`.

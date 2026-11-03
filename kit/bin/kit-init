@@ -255,11 +255,18 @@ def covers(directory, path):
 
 
 def read_text(path):
+    """The file's text with its line ends read as LF, or None when it cannot be
+    opened; a file that is not UTF-8 is a refusal (docs/kit-init.md R-1 b)."""
     try:
-        with open(path, encoding="utf-8") as f:
-            return f.read()
+        with open(path, "rb") as f:
+            raw = f.read()
     except OSError:
         return None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        raise Refused(["%s is not UTF-8 text kit-init can read%s" % (path, TAIL)])
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def path_problem(d):
@@ -737,8 +744,9 @@ def appended(existing, block):
 
 def write_all(plan):
     """plan: [(path, text, mode, original or None)]. On a failure, remove the
-    files this run created, restore appended files to their original bytes,
-    and remove only the directories this run made."""
+    files this run created, truncate appended files to the byte length they had
+    on disk before the append (os.stat, never the length of the LF-read text:
+    docs/kit-init.md R-1 a), and remove only the directories this run made."""
     created, restored, dirs = [], [], []
     try:
         for path, text, mode, original in plan:
@@ -758,7 +766,8 @@ def write_all(plan):
                     f.write(data)
                 os.chmod(path, mode)
             else:
-                restored.append((path, original))
+                size = os.stat(path).st_size
+                restored.append((path, size))
                 with open(path, "ab") as f:
                     f.write(data[len(original.encode("utf-8")):])
     except BaseException as e:
@@ -767,10 +776,10 @@ def write_all(plan):
                 os.remove(path)
             except OSError:
                 pass
-        for path, original in restored:
+        for path, size in restored:
             try:
                 with open(path, "r+b") as f:
-                    f.truncate(len(original.encode("utf-8")))
+                    f.truncate(size)
             except OSError:
                 pass
         for d in reversed(dirs):
