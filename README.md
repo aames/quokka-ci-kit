@@ -124,6 +124,16 @@ The example repository, [quokka-ci-kit-example](https://github.com/aames/quokka-
 
 The full procedure, with what proves each step done, is [kit/README.md](kit/README.md) §7.
 
+## With an agent
+
+An AI coding agent can do the quick start for you, and it asks you before anything that needs your word: the release fingerprint, the push, the branch protection.
+
+- **Any agent** (Claude Code, Codex or another): paste [docs/adopt-with-an-agent.md](docs/adopt-with-an-agent.md) into a session in your repository.
+- **Claude Code**: install the skill, [claude/skills/quokka-adopt](claude/skills/quokka-adopt/README.md), and ask it to adopt the kit.
+- **Codex**: add one line to your `AGENTS.md`: `To adopt quokka-ci-kit or add a CI job, fetch https://raw.githubusercontent.com/aames/quokka-ci-kit/main/docs/adopt-with-an-agent.md and follow it.`
+
+Once adopted, [docs/agents-section.md](docs/agents-section.md) is the section that tells an agent working in your repository how its CI works. `kit-init` ([docs/kit-init.md](docs/kit-init.md)) will write the files and that section for you once it is released, leaving the agent to check its work.
+
 ## How trust works
 
 A **green record** is trusted when its key recomputes from the commit it names and that commit has a successful check run of the job from `github-actions`. That catches accidents, not malice. A **local record** is trusted only when its SSH signature verifies against the signers file **on main** (its contents never from the branch), its key recomputes, its tool versions equal the commit's pins, its counts are above zero and every skipped test leg is allow-listed on main; it is never trusted on a forced run or the weekly run. The weekly scheduled run ignores every local record and runs on CI each job whose key at main's tip CI has not itself passed. Write this residual into your own documentation, word for word, with the two facts [DESIGN.md](DESIGN.md) §3.4 states beside it:
@@ -175,6 +185,8 @@ CHANGELOG.md         one entry per release: moves keys, the kit/ tree hash, your
 SECURITY.md          how to report a vulnerability, and what the kit promises
 CONTRIBUTING.md      running the kit's tests, the bash 3.2 rule, cutting a release
 LICENSE              MIT
+docs/                adopting with an agent: the prompt and the AGENTS.md section
+claude/skills/       the Claude Code skill that points at the prompt
 kit/                 what you vendor at ci/kit/
   README.md          the command, manifest and adapter reference
   bin/               plan, record, prune, local-ci, pre-push, container, keys, kit-update, the checks
