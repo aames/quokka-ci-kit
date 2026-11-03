@@ -85,6 +85,51 @@ jobs:
           python3 -c 'import yaml' 2>/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq python3-yaml; }
           python3 kit/bin/check-workflow --fixture kit/tests/fixture/workflows/
 
+      # The agent section is written once, in kit/templates/agents/section.md
+      # (docs/kit-init.md section 3.9, AC-KI-27). Neither the kit's README nor the
+      # guide for adopting with an agent may repeat one of its body lines; they cite
+      # its path, because two copies of an instruction drift. A body line is a line
+      # of the section of 20 or more characters that is not a heading; a token in it
+      # matches any text, so a copy with the tokens filled in is found too.
+      - name: The agent section is cited, never copied
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          template = "kit/templates/agents/section.md"
+          documents = ["docs/adopt-with-an-agent.md", "kit/README.md"]
+          if not os.path.isfile(template):
+              print("::error::%s does not exist, so nothing was checked." % template)
+              sys.exit(1)
+          body, inside = [], False
+          with open(template, encoding="utf-8") as f:
+              for line in f:
+                  text = line.rstrip("\n")
+                  if text.startswith("<!-- quokka-ci-kit section begin"):
+                      inside = True
+                  elif text.startswith("<!-- quokka-ci-kit section end"):
+                      break
+                  elif inside and len(text.strip()) >= 20 and not text.lstrip().startswith("#"):
+                      body.append(text.strip())
+          if not body:
+              print("::error::%s holds no body line, so nothing was checked." % template)
+              sys.exit(1)
+          bad, seen = 0, []
+          for doc in documents:
+              if not os.path.isfile(doc):
+                  continue
+              seen.append(doc)
+              with open(doc, encoding="utf-8") as f:
+                  text = f.read()
+              for line in body:
+                  pattern = ".+?".join(re.escape(part) for part in re.split(r"@@[A-Z_]+@@", line))
+                  if re.search(pattern, text):
+                      print("::error::%s repeats a body line of %s: %s" % (doc, template, line))
+                      bad += 1
+          if bad:
+              sys.exit(1)
+          print("OK: %d body lines of %s, none repeated in %s." % (len(body), template, ", ".join(seen) or "any document (none exists yet)"))
+          PY
+
   # THE KIT'S PROOFS (kit/README.md §5.7, §6.2, §6.1): the families that need no
   # Docker daemon on the runner's own bash and python3, then the families that
   # do, against the runner's Docker (the base built cold from the source

@@ -1,6 +1,6 @@
 ---
 name: quokka-adopt
-description: Use when the person asks to adopt quokka-ci-kit in a repository (vendor the kit, write its manifest, verdict script, job image, workflow and hook, and get the lints and make check green), or to add, change or debug a CI job in a repository that already has the kit under ci/kit/. It fetches the kit's canonical agent instructions and follows them, so the steps and rules live in one place.
+description: Use when the person asks to adopt quokka-ci-kit in a repository (vendor the kit, run kit-init to write its manifest, verdict script, job image, workflow and hook, or write them by hand on an older release, and get the lints and make check green), or to add, change or debug a CI job in a repository that already has the kit under ci/kit/. It fetches the kit's canonical agent instructions and follows them, so the steps and rules live in one place.
 ---
 
 # Adopting quokka-ci-kit

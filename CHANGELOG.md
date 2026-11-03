@@ -2,6 +2,58 @@
 
 One entry per release, newest first. Each entry names the tag, the date, whether it moves keys (every release does: `ci/kit` is in the key of every adapter-run job, so a kit change re-tests every such job once; see [kit/README.md](kit/README.md) §5.4), the `kit/` tree the tag names (`git rev-parse <tag>^{commit}:kit`), and the adopter's actions in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means the adopter must act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A base image digest bump is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet: nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag names that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
 
+## v1.1.0-rc.1 (2026-11-03)
+
+- New: `kit/bin/kit-init`, the generator of an adopter's files (docs/kit-init.md):
+  the manifest, the adapter, the job image's Dockerfile, the workflow, the hook
+  shim, the Makefile's check target, the signers file and an agent section in
+  AGENTS.md and CLAUDE.md, for Go, Node with vitest and Python with pytest,
+  with a refusing stub arm for anything else. Python 3.9 or later, standard
+  library only; run once, by hand.
+- New: `kit/templates/`, the files it renders, signed with the release.
+- Changed: `check-manifest` rule 6 accepts the path `.`, as its text always
+  said. `check-escaping-reads` passes a manifest with no escaping-scan line,
+  saying no file was scanned; under a tree of `.` it counts depth, accepts a
+  declared escaping-read line and scans a `test/` directory exactly as it does
+  under a named tree.
+- Changed: no file under `kit/` has a name a test runner or compiler collects
+  from a repository's top. The kit's own fixture sources end in `.fixture`, so a
+  project whose tests run from its top never runs the kit's.
+- Fixed: `kit-init` writes no file through a symbolic link. A file it would
+  write or append to that is a link, or sits under one, is refused, and nothing
+  is written.
+- Fixed: every directory and file name `kit-init` puts into a generated file is
+  letters, digits and `. _ / -`, so no name can carry shell or quotes into the
+  verdict script, the job image or the workflow.
+- Fixed: `kit-init` runs its own `python3` in isolated mode (`-I`), so a
+  `yaml.py` at the top of the repository is never imported.
+- Fixed: `kit-init` exits 3, not 0, when a check did not run (the workflow
+  fence without PyYAML), and says which check and how to run it.
+- Fixed: when the commit fails, `kit-init` says so in one line with git's exit
+  code and message, and exits 1.
+- Fixed: `kit-init` refuses a detached HEAD when it would commit, and says when
+  it guessed the main branch because `origin/HEAD` is not set.
+- Reviewed: a security read of `kit-init` before this release, recorded in
+  `docs/reviews/security-kit-init-2026-11-03.md`: one medium and five low
+  findings, all fixed above, and six notes left for later releases
+  (docs/kit-init.md, Revision 4).
+- Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
+  formula, the plan's sentences, `check-host`'s file list and allow-list; every
+  check but those two.
+- The proofs: the K-init family in `kit/tests/run` (every supported shape
+  generated offline and held to the lint and both fences), two shapes end to
+  end in `kit/tests/image` (Go, Node and Postgres; Python with pytest), and
+  planted defects in `kit/tests/plants`, each seen red.
+- Proven on: linux/amd64, the kit's own CI run on the release pull request, and
+  linux/arm64, a workstation run of both end-to-end shapes at the same tree;
+  both are recorded in that pull request. The arm64 run: `bash kit/tests/image
+  --family initgo --family initpy` at kit tree 70287a68 on 2026-11-03, `cases: 20,
+  failures: 0`. The amd64 run: the `kit` job of the release pull request's CI run.
+- Moves keys: yes (every adapter-run key moves with `ci/kit`).
+- The `kit/` tree this tag names: `70287a6873ac019c95964ba7589736976f8fdbfc`
+- Adopter's actions: none. A project that adopted by hand may add the agent
+  section with `python3 ci/kit/bin/kit-init --agent-files-only`.
+
 ## v1.0.0 (2026-11-03)
 
 - The first release. Its `kit/` tree is `v1.0.0-rc.2`'s, unchanged: the two

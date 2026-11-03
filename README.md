@@ -2,7 +2,7 @@
 
 Stop paying CI to re-run tests you already ran: a vendored kit for GitHub Actions that skips a job when its exact content already passed, in CI or, signed, on your own machine.
 
-**Start here.** Manual, from the template, about 30 minutes: [QUICKSTART.md](QUICKSTART.md). With an AI agent (Claude Code, Codex or another): [With an agent](#with-an-agent). Already have a repository: [kit/README.md §7](kit/README.md).
+**Start here.** Already have a repository: `kit-init` writes your files, [QUICKSTART.md, Faster: kit-init](QUICKSTART.md#faster-kit-init). A new one, from the template, about 30 minutes: [QUICKSTART.md](QUICKSTART.md). With an AI agent (Claude Code, Codex or another): [With an agent](#with-an-agent). Every step with what proves it done: [kit/README.md §7](kit/README.md).
 
 ```text
         .-"""-.
@@ -104,7 +104,7 @@ It pays off when your pull requests spend real minutes on test jobs, or you wait
 - **GitHub Actions**, with a **protected `main`**: pull requests only, **signed commits required**. List in the signers file the key that already signs your commits, and the local record adds no new key with new reach. The kit does not check that the two are the same key: whoever reviews a signer's line does, and `git log --show-signature` reading Good for that person's commits is the proof ([kit/README.md](kit/README.md) §7 step 10).
 - **Docker** on every workstation and on the runner. A workstation needs Docker, git 2.34 or later, `ssh-keygen -Y`, bash 3.2 or later (the one macOS ships will do) and the standard Unix tools every macOS and Linux has; `make` as well when your check command is `make check`, as the example's is; and `python3`, with PyYAML for the workflow fence, wherever you run the two Python fences by hand. No tool a verdict uses comes from the workstation: those come from the job image.
 - **Every job's verdict as one script** in your repository, which CI and a workstation run the same way. If checks live in workflow YAML, move them into the script first.
-- **Every tool pinned** in a file the kit can read as data: a `toolchain` line in `go.mod`, an `.nvmrc`, or `readonly <NAME>_VERSION=` lines.
+- **Every tool pinned** in a file the kit can read as data: a `toolchain` line in `go.mod`, an `.nvmrc`, a `.python-version`, or `readonly <NAME>_VERSION=` lines.
 - **A Dockerfile for the job image**, `FROM` the kit's base, installing your tools at those pins.
 - **Actions permissions that let a job write refs**: the jobs that record need `contents: write`, the always-on job also `checks: read`. The always-on job runs two Python fences, so the runner needs `python3` with PyYAML ([kit/README.md](kit/README.md) §5.5 has the one line that installs it where it is missing).
 
@@ -112,19 +112,26 @@ It is not for you if a job must test the host itself (its kernel, its sockets) a
 
 ## Quick start
 
-[QUICKSTART.md](QUICKSTART.md) takes you from nothing to green CI in about 30 minutes, in nine numbered steps. It starts from the example repository, [quokka-ci-kit-example](https://github.com/aames/quokka-ci-kit-example), a small Go and web project that records quokka sightings on Rottnest Island, with the kit vendored and every file written. On that page, click **Use this template**, then follow QUICKSTART.md.
+**A repository you already have.** Vendor the kit, then let `kit-init` write the files: one command reads your directories and pins and writes the manifest, the verdict script, the job image's Dockerfile with each toolchain's checksums, the workflow, the hook, the `check` target and the CI section for agents, commits them on your branch and runs the lints. Go, Node with vitest and Python with pytest are written whole; anything else gets a stub that refuses until you fill it in. `kit-init` ships from `v1.1.0-rc.1`. The steps are [QUICKSTART.md, Faster: kit-init](QUICKSTART.md#faster-kit-init):
 
-To adopt the kit in a repository you already have, the full procedure, with what proves each step done, is [kit/README.md](kit/README.md) §7.
+```sh
+python3 ci/kit/bin/kit-init --project sightings --go api --node web --postgres api
+make check
+```
+
+**A new repository.** [QUICKSTART.md](QUICKSTART.md) takes you from nothing to green CI in about 30 minutes, in nine numbered steps. It starts from the example repository, [quokka-ci-kit-example](https://github.com/aames/quokka-ci-kit-example), a small Go and web project that records quokka sightings on Rottnest Island, with the kit vendored and every file written. On that page, click **Use this template**, then follow QUICKSTART.md.
+
+Every step of adoption, with what proves each one done, is [kit/README.md](kit/README.md) §7; what `kit-init` writes and why is [docs/kit-init.md](docs/kit-init.md).
 
 ## With an agent
 
-An AI coding agent can do the quick start for you, and it asks you before anything that needs your word: the release fingerprint, the push, the branch protection.
+An AI coding agent can adopt the kit for you: it vendors the kit, runs `kit-init` with a flag for each stack it finds in your repository, reads what it wrote, and runs the lints and `make check`. It asks you before anything that needs your word: the release fingerprint, the push, the branch protection.
 
 - **Any agent** (Claude Code, Codex or another): paste [docs/adopt-with-an-agent.md](docs/adopt-with-an-agent.md) into a session in your repository.
 - **Claude Code**: install the skill, [claude/skills/quokka-adopt](claude/skills/quokka-adopt/README.md), and ask it to adopt the kit.
 - **Codex**: add one line to your `AGENTS.md`: `To adopt quokka-ci-kit or add a CI job, fetch https://raw.githubusercontent.com/aames/quokka-ci-kit/main/docs/adopt-with-an-agent.md and follow it.`
 
-Once adopted, [docs/agents-section.md](docs/agents-section.md) is the section that tells an agent working in your repository how its CI works. `kit-init` ([docs/kit-init.md](docs/kit-init.md)) will write the files and that section for you once it is released, leaving the agent to check its work.
+`kit-init` also writes a short section into your `AGENTS.md` and `CLAUDE.md` that tells any agent working in your repository how its CI works: run `make check` before a push, never edit `ci/kit/`. Its one text is [kit/templates/agents/section.md](kit/templates/agents/section.md); [docs/agents-section.md](docs/agents-section.md) says how to add it to a repository that adopted by hand.
 
 ## How trust works
 
@@ -177,14 +184,15 @@ CHANGELOG.md         one entry per release: moves keys, the kit/ tree hash, your
 SECURITY.md          how to report a vulnerability, and what the kit promises
 CONTRIBUTING.md      running the kit's tests, the bash 3.2 rule, cutting a release
 LICENSE              MIT
-docs/                adopting with an agent: the prompt and the AGENTS.md section
+docs/                the kit-init specification; adopting with an agent: the prompt and the AGENTS.md section
 claude/skills/       the Claude Code skill that points at the prompt
 kit/                 what you vendor at ci/kit/
   README.md          the command, manifest and adapter reference
-  bin/               plan, record, prune, local-ci, pre-push, container, keys, kit-update, the checks
+  bin/               plan, record, prune, local-ci, pre-push, container, keys, kit-update, kit-init, the checks
   lib/keys.sh        the key formula and the trust check, both arms
   image/             the base image's Dockerfile and its entry script
   hooks/             the pre-push shim you copy to .githooks/pre-push
+  templates/         what kit-init renders into your repository
   tests/             the kit's own proofs: run, image, plants
 .github/workflows/   the kit's own CI
 ```
