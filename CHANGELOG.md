@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Each entry names the tag, the date, whether it moves keys (every release does: `ci/kit` is in the key of every adapter-run job, so a kit change re-tests every such job once; see [kit/README.md](kit/README.md) §5.4), the `kit/` tree the tag names (`git rev-parse <tag>^{commit}:kit`), and the adopter's actions in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means the adopter must act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A base image digest bump is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet: nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag names that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
 
-## v1.0.0-rc.2 (unreleased)
+## v1.0.0-rc.2 (2026-11-03)
 
 - Fixed: `check-escaping-reads` counted a test file sitting directly in its
   escaping-tree as one level below the tree, so `api/x_test.go` reading
@@ -13,7 +13,7 @@ One entry per release, newest first. Each entry names the tag, the date, whether
   read by an `escaping-read` line and key it.
 - Unchanged: everything else in `v1.0.0-rc.1`.
 - Moves keys: yes (every adapter-run key moves with `ci/kit`).
-- The `kit/` tree this tag names: `<written by the release pull request>`.
+- The `kit/` tree this tag names: `9e282b4f70e5d5a70abf5d35e01b9b5e3ccba9ba`
 - Adopter's actions: re-vendor with `kit-update v1.0.0-rc.2`; if the fence then
   names a test directly in its tree, declare that read and key it.
 
