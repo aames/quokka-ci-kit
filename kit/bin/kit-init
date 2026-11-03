@@ -833,8 +833,12 @@ def preflight_repo():
         raise Refused(["kit-init runs at the top of a git working copy" + TAIL])
     if not (os.path.isfile("ci/kit/lib/keys.sh") and os.path.isfile("ci/KIT-VERSION")):
         raise Refused(["There is no ci/kit/lib/keys.sh or ci/KIT-VERSION; vendor the kit with kit-update first" + TAIL])
+    # the tag is read here, once, so a ci/KIT-VERSION that is not UTF-8 is refused before anything is written
+    # (docs/kit-init.md rev 3, R3-2); nothing after write_all reads the file
+    tag = next((ln.split()[1] for ln in (read_text("ci/KIT-VERSION") or "").splitlines()
+                if ln.split()[:1] == ["tag"] and len(ln.split()) > 1), "(no tag)")
     common = git_value("rev-parse", "--git-common-dir")
-    return os.path.realpath(os.path.join(top, common))
+    return os.path.realpath(os.path.join(top, common)), tag
 
 
 def section_refusals(skip):
@@ -907,7 +911,7 @@ def main(argv):
     opts = parse_args(argv)
     if opts["agent_files_only"]:
         return agent_files_only()
-    common = preflight_repo()
+    common, kit_tag = preflight_repo()
     refusals = []
     project = opts["project"]
     if not PROJECT_RE.fullmatch(project):
@@ -1006,12 +1010,10 @@ def main(argv):
             for p in ("ci/kit", "ci/KIT-VERSION", "ci/KIT-SIGNERS"):
                 if any(ln[3:].rstrip("/") == p or ln[3:].startswith(p + "/") for ln in vend.splitlines()):
                     paths.append(p)
-            tag = next((ln.split()[1] for ln in (read_text("ci/KIT-VERSION") or "").splitlines()
-                        if ln.split()[:1] == ["tag"] and len(ln.split()) > 1), "(no tag)")
             add = git("add", "--", *paths)
-            done = add.returncode == 0 and git("commit", "-q", "-m", COMMIT_MESSAGE % tag, "--", *paths).returncode == 0
+            done = add.returncode == 0 and git("commit", "-q", "-m", COMMIT_MESSAGE % kit_tag, "--", *paths).returncode == 0
             if done:
-                print("committed %s: %s" % (git_value("rev-parse", "--short", "HEAD"), COMMIT_MESSAGE % tag))
+                print("committed %s: %s" % (git_value("rev-parse", "--short", "HEAD"), COMMIT_MESSAGE % kit_tag))
             else:
                 print("The files are written but the commit failed; commit them yourself, then run the checks below.")
                 rc = 1
@@ -1027,27 +1029,43 @@ def main(argv):
         checks += [("check-workflow", ["ci/kit/bin/check-workflow"] + extra, "python"),
                    ("check-escaping-reads", ["ci/kit/bin/check-escaping-reads"] + extra, "python"),
                    ("check-prereqs", ["ci/kit/bin/check-prereqs"], "bash")]
+        codes = {}
         for name, args, runner in checks:
             if name == "check-workflow" and not has_yaml:
                 print("NOT RUN check-workflow: this python3 has no PyYAML; CI's always-on job runs it.")
                 continue
             code = (bash(*args) if runner == "bash" else python(*args)).returncode
+            codes[name] = code
             print("%s: exit %d" % (name, code))
             if code != 0:
                 rc = 1
         if signer_line:
             init.file("allowed-signers.next", signer_line + "\n")
-        closing(ctx, jobs, branch, signer_line, fingerprint, os.path.join(init.path, "allowed-signers.next"))
+        no_tests = codes.get("check-manifest") == 0 and codes.get("check-escaping-reads") == 2
+        closing(ctx, jobs, branch, signer_line, fingerprint, os.path.join(init.path, "allowed-signers.next"), no_tests)
         return rc
     finally:
         init.close()
 
 
-def closing(ctx, jobs, branch, signer_line, fingerprint, next_path):
+def closing(ctx, jobs, branch, signer_line, fingerprint, next_path, no_tests=False):
     stack_jobs = [j["job"] for j in jobs]
     real = [j["job"] for j in jobs if not j["stub"]]
     stubs = [j["job"] for j in jobs if j["stub"]]
-    steps = ["make check (the first run builds the base and job images and takes several minutes)."]
+    steps = []
+    if no_tests:
+        # the fence refused "found no test files" while the manifest passed: the scan lines stay written and the
+        # way forward comes first (docs/kit-init.md rev 3, R3-4; AC-KI-39)
+        scans = []
+        for j in jobs:
+            # the directories of the escaping-scan lines the templates write: a Go job's own, a Node job's scan root
+            d = j["scan_dir"] if j["stack"] == "node" else j["dir"] if j["stack"] == "go" and not j["stub"] else None
+            w = "the repository's top" if d == "." else d
+            if d is not None and w not in scans:
+                scans.append(w)
+        steps.append("Write a first test in %s, commit it, and run python3 ci/kit/bin/check-escaping-reads again; "
+                     "CI's checks job refuses this tree until you do." % prose(scans or ["your stack directories"]))
+    steps.append("make check (the first run builds the base and job images and takes several minutes).")
     if real:
         steps.append("After it passes: %s." % "; ".join("bash ci/kit/bin/check-adapter %s" % n for n in real))
     if stubs:

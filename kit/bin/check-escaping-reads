@@ -276,6 +276,12 @@ def escapes(rel, src, lang, tree):
     return reasons
 
 
+def within(path, tree):
+    """True when path is the tree or lies under it; a tree of . holds every path
+    (docs/kit-init.md rev 3, R3-3)."""
+    return tree == "." or path == tree or path.startswith(tree + "/")
+
+
 def test_files(root, scans, trees):
     """(rel, lang, tree, job) for every test file under each scan root; a file
     no escaping-tree holds is returned with tree None."""
@@ -292,7 +298,8 @@ def test_files(root, scans, trees):
                     hit = name.endswith("_test.go")
                 else:
                     hit = name.endswith((".ts", ".tsx")) and (
-                        re.search(r"\.test\.tsx?$", name) is not None or rel.startswith(top.rstrip("/") + "/test/")
+                        re.search(r"\.test\.tsx?$", name) is not None
+                        or within(rel, "test" if top.rstrip("/") in (".", "") else top.rstrip("/") + "/test")
                     )
                 if not hit:
                     continue
@@ -372,7 +379,7 @@ def main():
     scanned = {t for _k, t in scans}
     for job, paths in sorted(trees.items()):
         for t in paths:
-            if not any(t == s or s.startswith(t + "/") or t.startswith(s + "/") for s in scanned):
+            if not any(within(s, t) or within(t, s) for s in scanned):
                 print(f"{job + (chr(39) if job.endswith('s') else chr(39) + 's')} tree {t} has no escaping-scan line, so its reads are declared by hand (kit/README.md §3.4).")
     files = test_files(root, scans, trees)
     if not scans:
@@ -404,8 +411,8 @@ def main():
         if classes.get(job) not in ("local", "ci-only"):
             failures.append(f"{rel} is declared for {job}, which is not a local or ci-only job.")
             continue
-        if not any(rel.startswith(t + "/") for t in trees.get(job, [])):
-            where = " or ".join(t + "/" for t in trees.get(job, [])) or "no escaping-tree"
+        if not any(within(rel, t) for t in trees.get(job, [])):
+            where = " or ".join("the repository's top" if t == "." else t + "/" for t in trees.get(job, [])) or "no escaping-tree"
             failures.append(f"{rel} is declared for job {job} but is not in {where}.")
         if reads in (["WHOLE-TREE"], ["NONE"]):
             continue

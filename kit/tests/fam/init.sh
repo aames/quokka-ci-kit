@@ -15,6 +15,10 @@
 #   AC-KI-27          the guard of the kit's own workflow, extracted from it and run on planted documents
 #   AC-KI-28          the five planted defects live in tests/plants and turn this family red
 #   AC-KI-29, AC-KI-30  all eight shapes through the four checks (the end-to-end half is tests/image)
+#   AC-KI-37          the . shape carries one declared, keyed escaping-read line (the fence half is K-escaping)
+#   AC-KI-38          no file under the kit has a name a test runner collects by default; fixture sources are
+#                     stored as NAME.fixture and placed as NAME by ki_cp
+#   AC-KI-39          a stack directory with no test file: the scan line, exit 1 and the step before make check
 KI_FIX="$KITT_FIX/init"
 KI_SUMS="$KI_FIX/checksums"
 
@@ -43,8 +47,23 @@ init_new() {
   IR="$work/$1"
 }
 init_commit() { git -C "$IR" add -A && git -C "$IR" commit -qm "${1:-fixture}"; }
+# ki_cp <fixture dir> <dest dir>: copy a fixture tree, each NAME.fixture placed as NAME (docs/kit-init.md rev 3,
+# R3-5: the kit stores no file a test runner collects by default, so its sources carry .fixture).
+ki_cp() {
+  local f
+  mkdir -p "$2"
+  cp -R "$1/." "$2/"
+  ( cd "$1" && find . -type f -name '*.fixture' ) | while IFS= read -r f; do mv "$2/$f" "$2/${f%.fixture}"; done
+}
 # init_put <fixture src> <dest>: copy a source tree from fixture/init/src into the repository, committed.
-init_put() { mkdir -p "$IR/$2"; cp -R "$KI_FIX/src/$1/." "$IR/$2/"; init_commit "$1"; }
+init_put() { ki_cp "$KI_FIX/src/$1" "$IR/$2"; init_commit "$1"; }
+# ki_collectable <dir>: every file under dir whose name a test runner or compiler collects by default from a
+# repository's top (AC-KI-38), one per line, sorted; nothing when there is none.
+ki_collectable() {
+  ( cd "$1" && find . -type f \( -name '*.go' -o -name '*.ts' -o -name '*.tsx' -o -name '*.mts' -o -name '*.cts' \
+    -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' -o -name '*.cjs' -o -name 'test_*.py' -o -name '*_test.py' \
+    -o -name 'conftest.py' \) | sort )
+}
 # init_file <path> <text>: a file written (text as printf takes it) and committed.
 init_file() { mkdir -p "$(dirname "$IR/$1")"; printf '%b' "$2" > "$IR/$1"; init_commit "$1"; }
 
@@ -326,6 +345,11 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
   init_new u8f
   cp "$KI_FIX/latin1" "$IR/AGENTS.md"; init_commit "AGENTS.md in latin-1"
   ki_refuse "AC-KI-35: --agent-files-only on an AGENTS.md that is not UTF-8" "AGENTS.md is not UTF-8 text kit-init can read, so nothing was written." --agent-files-only
+  # rev 3, R3-2: the tag is read in the preflight, so a ci/KIT-VERSION that is not UTF-8 is refused before any write
+  init_new u8v
+  cp "$KI_FIX/latin1" "$IR/ci/KIT-VERSION"; init_commit "ci/KIT-VERSION in latin-1"
+  ki_refuse "AC-KI-35: a ci/KIT-VERSION that is not UTF-8 (R3-2)" "ci/KIT-VERSION is not UTF-8 text kit-init can read, so nothing was written." --project refuse
+  ki_refuse "AC-KI-35: a ci/KIT-VERSION that is not UTF-8, with --no-agent-files (R3-2)" "ci/KIT-VERSION is not UTF-8 text kit-init can read, so nothing was written." --project refuse --no-agent-files
 
   # ------------------------------------------------------------------------------------------------
   # AC-KI-6 and AC-KI-7: the offline path. The proxy trap is proven live first, by a run that is
@@ -435,7 +459,7 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
       novitest) init_put novitest web; set -- --project stubnode --node web ;;
       twogo) init_put go api; init_put go worker; set -- --project twogo --go api --go worker ;;
       nostack) set -- --project nostack ;;
-      dot) cp -R "$KI_FIX/src/dot/." "$IR/"; init_commit dot; set -- --project dotted --go . ;;
+      dot) ki_cp "$KI_FIX/src/dot" "$IR"; init_commit dot; set -- --project dotted --go . ;;
     esac
     kinit "$@" --checksums "$KI_SUMS"
     kok "AC-KI-30 [$shape]: kit-init writes and commits" 0
@@ -491,6 +515,14 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
       dot)
         has "AC-KI-30 [dot]: the Go job's pin source is go.mod at the root" "$IR/ci/manifest" "pin-source go toolchain-line go.mod"
         has "AC-KI-30 [dot]: the escaping tree is ." "$IR/ci/manifest" "escaping-tree go ."
+        # AC-KI-37 (rev 3, R3-3): a declared, keyed escaping-read line under the tree of . is accepted
+        printf 'escaping-read go|db/x_test.go|go.mod|reads the module file at the top\n' >> "$IR/ci/manifest"
+        init_commit "a declared read under ."
+        in_repo bash ci/kit/bin/check-manifest --commit HEAD
+        rc_is "AC-KI-37 [dot]: check-manifest at HEAD with the declared read" 0 "$IN_RC"
+        in_repo python3 ci/kit/bin/check-escaping-reads
+        rc_is "AC-KI-37 [dot]: check-escaping-reads accepts the keyed escaping-read line under ." 0 "$IN_RC"
+        hasnt "AC-KI-37 [dot]: and does not say the file is outside the tree" "$work/in.out" "is declared for job go but is not in"
         ;;
       gnp)
         has "AC-KI-11 [gnp]: the Postgres service line names the project's URL variable" "$IR/ci/manifest" "url-env ROTTNEST_TEST_PG_URL"
@@ -499,6 +531,38 @@ exec(compile(open(os.environ["KI_SRC"]).read(), "kit-init", "exec"))' ) > "$work
         ;;
     esac
   done
+
+  # AC-KI-39 (rev 3, R3-4): a Go or Node directory with no test file keeps its scan line, exits 1, and the first
+  # closing step says to write a test before make check
+  init_new notest
+  init_put go api; rm -f "$IR/api/one_test.go"; init_commit "no Go test"
+  kinit --project notest --go api --checksums "$KI_SUMS"
+  kok "AC-KI-39 [go]: a Go directory with no test file exits 1" 1
+  has "AC-KI-39 [go]: the fence's sentence" "$work/ki.out" "the escaping-read fence found no test files, so it would prove nothing."
+  has "AC-KI-39 [go]: check-manifest passed" "$work/ki.out" "check-manifest: exit 0"
+  has "AC-KI-39 [go]: the step names the directory, first" "$work/ki.out" " 1. Write a first test in api, commit it, and run python3 ci/kit/bin/check-escaping-reads again; CI's checks job refuses this tree until you do."
+  has "AC-KI-39 [go]: make check follows it" "$work/ki.out" " 2. make check"
+  has "AC-KI-39 [go]: the scan line is written" "$IR/ci/manifest" "escaping-scan go api"
+  init_new notestn
+  init_put node web; rm -f "$IR/web/src/one.test.ts"; printf 'export const one = 1\n' > "$IR/web/src/one.ts"; init_commit "no Node test"
+  kinit --project notestn --node web --checksums "$KI_SUMS"
+  kok "AC-KI-39 [node]: a Node directory with no test file exits 1" 1
+  has "AC-KI-39 [node]: the step names the scan root, first" "$work/ki.out" " 1. Write a first test in web/src, commit it"
+  has "AC-KI-39 [node]: the scan line is written" "$IR/ci/manifest" "escaping-scan ts web/src"
+  init_new withtest
+  init_put go api
+  kinit --project withtest --go api --checksums "$KI_SUMS"
+  hasnt "AC-KI-39 (control): with a test file there is no such step" "$work/ki.out" "Write a first test in"
+
+  # AC-KI-38 (rev 3, R3-5): no file under the kit under test has a name a test runner collects by default; the walk
+  # is proven live on a copy with one planted file
+  eq "AC-KI-38: no file under the kit has a name a test runner collects by default" "" "$(ki_collectable "$KITT_KIT")"
+  rm -rf "$work/k38"; cp -R "$KITT_KIT" "$work/k38"
+  mkdir -p "$work/k38/tests/fixture/init/src/go"
+  printf 'package x\n' > "$work/k38/tests/fixture/init/src/go/planted_test.go"
+  eq "AC-KI-38 (red once): the walk finds a planted _test.go in a copy of the kit" "./tests/fixture/init/src/go/planted_test.go" "$(ki_collectable "$work/k38")"
+  rm -rf "$work/k38"
+  check "AC-KI-38: the fixture sources are stored as NAME.fixture" test -f "$KI_FIX/src/go/one_test.go.fixture"
 
   # the cron is one value in two places (AC-KI-12), the signer is printed and kept, never landed (AC-KI-16, AC-KI-8)
   init_new cron

@@ -197,6 +197,14 @@ e2e_repo() {
     "$(git -C "$E2E" rev-parse HEAD)" "$(git -C "$E2E" rev-parse HEAD:ci/kit)" > "$E2E/ci/KIT-VERSION"
   git -C "$E2E" add -A && git -C "$E2E" commit -qm version
 }
+# e2e_cp <fixture dir> <dest dir>: copy a fixture tree, each NAME.fixture placed as NAME (docs/kit-init.md rev 3,
+# R3-5: the kit stores no file a test runner collects by default, so its sources carry .fixture).
+e2e_cp() {
+  local f
+  mkdir -p "$2"
+  cp -R "$1/." "$2/"
+  ( cd "$1" && find . -type f -name '*.fixture' ) | while IFS= read -r f; do mv "$2/$f" "$2/${f%.fixture}"; done
+}
 # e2e <command...>: in the scratch adopter, on the host as it is (Docker, git, make), the way an adopter runs
 # it; E2E_RC and $work/e2e.out (both streams).
 e2e() {
@@ -240,7 +248,7 @@ fam_initgo() {
   local f line
   e2e_repo e2e-go rottnest
   mkdir -p "$E2E/api" "$E2E/web"
-  cp -R "$KITT_FIX/init/e2e/api/." "$E2E/api/"; cp -R "$KITT_FIX/init/e2e/web/." "$E2E/web/"
+  e2e_cp "$KITT_FIX/init/e2e/api" "$E2E/api"; e2e_cp "$KITT_FIX/init/e2e/web" "$E2E/web"
   git -C "$E2E" add -A && git -C "$E2E" commit -qm "the example's api and web at 8ad9623"
   e2e_generate "AC-KI-29 [go, node, postgres]" --project rottnest --go api --node web --postgres api --checksums "$KITT_FIX/init/checksums" --no-agent-files || { e2e_images; return 0; }
   e2e_check "AC-KI-29 [go, node, postgres]" "api web kit" || { e2e_images; return 0; }
@@ -260,7 +268,7 @@ fam_initgo() {
 fam_initpy() {
   e2e_repo e2e-py pyshape
   mkdir -p "$E2E/py"
-  cp -R "$KITT_FIX/init/e2e-python/." "$E2E/py/"
+  e2e_cp "$KITT_FIX/init/e2e-python" "$E2E/py"
   git -C "$E2E" add -A && git -C "$E2E" commit -qm "a Python project: pytest, hashed requirements"
   e2e_generate "AC-KI-36 [python]" --project pyshape --python py --checksums "$KITT_FIX/init/checksums" --no-agent-files || { e2e_images; return 0; }
   e2e_check "AC-KI-36 [python]" "py kit" || { e2e_images; return 0; }
