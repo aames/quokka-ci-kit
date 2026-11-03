@@ -2,6 +2,8 @@
 
 Stop paying CI to re-run tests you already ran: a vendored kit for GitHub Actions that skips a job when its exact content already passed, in CI or, signed, on your own machine.
 
+**Start here.** Manual, from the template, about 30 minutes: [QUICKSTART.md](QUICKSTART.md). With an AI agent (Claude Code, Codex or another): [With an agent](#with-an-agent). Already have a repository: [kit/README.md §7](kit/README.md).
+
 ```text
         .-"""-.
        / .===. \       quokka-ci-kit
