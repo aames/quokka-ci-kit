@@ -2,6 +2,25 @@
 
 One entry per release, newest first. Each entry names the tag, the date, whether it moves keys (every release does: `ci/kit` is in the key of every adapter-run job, so a kit change re-tests every such job once; see [kit/README.md](kit/README.md) §5.4), the `kit/` tree the tag names (`git rev-parse <tag>^{commit}:kit`), and the adopter's actions in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means the adopter must act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A base image digest bump is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet: nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag names that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
 
+## v1.1.0-rc.1 (unreleased)
+
+- New: `kit/bin/kit-init`, the generator of an adopter's files (docs/kit-init.md):
+  the manifest, the adapter, the job image's Dockerfile, the workflow, the hook
+  shim, the Makefile's check target, the signers file and an agent section in
+  AGENTS.md and CLAUDE.md, for Go, Node with vitest and Python with pytest,
+  with a refusing stub arm for anything else. Python 3.9 or later, standard
+  library only; run once, by hand.
+- New: `kit/templates/`, the files it renders, signed with the release.
+- Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
+  formula, the plan's sentences, `check-host`'s file list and allow-list.
+- The proofs: the K-init family in `kit/tests/run` (every supported shape
+  generated offline and held to the lint and both fences), one shape end to end
+  in `kit/tests/image`, and planted defects in `kit/tests/plants`.
+- Moves keys: yes (every adapter-run key moves with `ci/kit`).
+- The `kit/` tree this tag names: `<written by the release pull request>`.
+- Adopter's actions: none. A project that adopted by hand may add the agent
+  section with `python3 ci/kit/bin/kit-init --agent-files-only`.
+
 ## v1.0.0-rc.1 (2026-11-03)
 
 - The first public release, derived from the author's private reference implementation.
