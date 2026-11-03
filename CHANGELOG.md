@@ -2,6 +2,21 @@
 
 One entry per release, newest first. Each entry names the tag, the date, whether it moves keys (every release does: `ci/kit` is in the key of every adapter-run job, so a kit change re-tests every such job once; see [kit/README.md](kit/README.md) §5.4), the `kit/` tree the tag names (`git rev-parse <tag>^{commit}:kit`), and the adopter's actions in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means the adopter must act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A base image digest bump is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet: nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag names that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
 
+## v1.1.0 (2026-11-03)
+
+- The `kit-init` release. Its `kit/` tree is `v1.1.0-rc.1`'s, unchanged: the
+  candidate was vendored and run green by the example repository, and the
+  generator's two end-to-end shapes (Go with Node and Postgres; Python with
+  pytest) ran green on linux/amd64 and linux/arm64 at this tree, so nothing
+  moved between the candidate and this entry.
+- Moves keys: no change from `v1.1.0-rc.1` (the same tree); yes from `v1.0.0`
+  (every adapter-run key moves with `ci/kit`).
+- The `kit/` tree this tag names: `70287a6873ac019c95964ba7589736976f8fdbfc`
+- Adopter's actions: re-vendor with `kit-update v1.1.0` (from `v1.1.0-rc.1`,
+  only `ci/KIT-VERSION` changes; from `v1.0.0`, nothing beyond the re-vendor).
+  A project adopted by hand may add the agent section with
+  `python3 ci/kit/bin/kit-init --agent-files-only`.
+
 ## v1.1.0-rc.1 (2026-11-03)
 
 - New: `kit/bin/kit-init`, the generator of an adopter's files (docs/kit-init.md):

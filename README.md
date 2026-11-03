@@ -112,7 +112,7 @@ It is not for you if a job must test the host itself (its kernel, its sockets) a
 
 ## Quick start
 
-**A repository you already have.** Vendor the kit, then let `kit-init` write the files: one command reads your directories and pins and writes the manifest, the verdict script, the job image's Dockerfile with each toolchain's checksums, the workflow, the hook, the `check` target and the CI section for agents, commits them on your branch and runs the lints. Go, Node with vitest and Python with pytest are written whole; anything else gets a stub that refuses until you fill it in. `kit-init` ships from `v1.1.0-rc.1`. The steps are [QUICKSTART.md, Faster: kit-init](QUICKSTART.md#faster-kit-init):
+**A repository you already have.** Vendor the kit, then let `kit-init` write the files: one command reads your directories and pins and writes the manifest, the verdict script, the job image's Dockerfile with each toolchain's checksums, the workflow, the hook, the `check` target and the CI section for agents, commits them on your branch and runs the lints. Go, Node with vitest and Python with pytest are written whole; anything else gets a stub that refuses until you fill it in. `kit-init` ships from `v1.1.0`. The steps are [QUICKSTART.md, Faster: kit-init](QUICKSTART.md#faster-kit-init):
 
 ```sh
 python3 ci/kit/bin/kit-init --project sightings --go api --node web --postgres api
@@ -159,7 +159,7 @@ Your workstation pays instead: a cold job image build (several minutes, once per
 
 ## Releases and the release signer
 
-The current release is `v1.0.0`. A release is a signed, annotated tag on this repository's protected `main` whose message's first line is `quokka-ci-kit <tag>` ([CONTRIBUTING.md](CONTRIBUTING.md) has how one is cut), and its [CHANGELOG.md](CHANGELOG.md) entry names the `kit/` tree it vendors.
+The current release is `v1.1.0`. A release is a signed, annotated tag on this repository's protected `main` whose message's first line is `quokka-ci-kit <tag>` ([CONTRIBUTING.md](CONTRIBUTING.md) has how one is cut), and its [CHANGELOG.md](CHANGELOG.md) entry names the `kit/` tree it vendors.
 
 The release signer's line for your `ci/KIT-SIGNERS`, in OpenSSH allowed-signers format:
 

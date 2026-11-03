@@ -54,7 +54,7 @@ Clone the kit outside this repository, for example `git clone https://github.com
 
 ### Step 2. Vendor the kit
 
-1. Find the release: the newest entry in the kit's `CHANGELOG.md` that is not headed `(unreleased)`, and confirm the tag exists with `git ls-remote --tags https://github.com/aames/quokka-ci-kit.git`. `kit-init` ships from `v1.1.0-rc.1`; with an older release, step 3 is by hand. Tell the person the tag you chose.
+1. Find the release: the newest entry in the kit's `CHANGELOG.md` that is not headed `(unreleased)`, and confirm the tag exists with `git ls-remote --tags https://github.com/aames/quokka-ci-kit.git`. `kit-init` ships from `v1.1.0`; with an older release, step 3 is by hand. Tell the person the tag you chose.
 2. Check out main with a clean working tree (`git status` shows nothing). If it is not clean, stop and ask.
 3. Write `ci/KIT-SIGNERS` holding exactly the release signer's line from README.md's section "Releases and the release signer".
 4. Run `bash <clone>/kit/bin/kit-update <tag>`.
@@ -86,7 +86,7 @@ Clone the kit outside this repository, for example `git clone https://github.com
 
 #### Step 3, by hand
 
-Only when `ci/kit/bin/kit-init` does not exist (a release before `v1.1.0-rc.1`). Write each file by kit/README.md section 7 step 4, copying the example's file each time and renaming the project:
+Only when `ci/kit/bin/kit-init` does not exist (a release before `v1.1.0`). Write each file by kit/README.md section 7 step 4, copying the example's file each time and renaming the project:
 
 - `ci/manifest`: the jobs, each job's paths (every path its verdict reads), the pins and where they are read from, the counts, any service. It names one `always-on` job (the example's `checks`) and one kit job (the `kit-job` line, the example's `kit`, which runs the kit's own proofs; kit/README.md section 5.6). kit/README.md section 3.
 - `.githooks/pre-push`: a byte-for-byte copy of `ci/kit/hooks/pre-push.shim`.
