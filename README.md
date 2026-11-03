@@ -110,19 +110,9 @@ It is not for you if a job must test the host itself (its kernel, its sockets) a
 
 ## Quick start
 
-The example repository, [quokka-ci-kit-example](https://github.com/aames/quokka-ci-kit-example), is every step below done once for a small Go and web project that records quokka sightings on Rottnest Island. Read its files beside these steps, and copy and rename them rather than writing from nothing. Each step ends with what is true when it is done.
+[QUICKSTART.md](QUICKSTART.md) takes you from nothing to green CI in about 30 minutes, in nine numbered steps. It starts from the example repository, [quokka-ci-kit-example](https://github.com/aames/quokka-ci-kit-example), a small Go and web project that records quokka sightings on Rottnest Island, with the kit vendored and every file written. On that page, click **Use this template**, then follow QUICKSTART.md.
 
-1. **Check the host settings.** Protect `main`: pull requests only, signed commits required. Push a scratch ref such as `refs/ci/test` and confirm no workflow run starts. Open a scratch pull request whose required job is skipped by its `if:` and confirm it shows as passing. Confirm your Actions settings do not cap the token below `contents: write` and `checks: read`. *Done when* each of the four is read back on the host.
-2. **Vendor the kit.** Put the release signer's line from [Releases and the release signer](#releases-and-the-release-signer) in `ci/KIT-SIGNERS`. At the top of your working copy, on `main`, run `bash <clone of this repository>/kit/bin/kit-update <tag>`. It verifies that the tag is a signed release, prints the fingerprint of each `ci/KIT-SIGNERS` line, and writes `ci/kit/` and `ci/KIT-VERSION`. *Done when* the printed fingerprint equals the published one (stop if it does not) and the two paths exist.
-3. **Write your files, on a new branch.** `ci/manifest`, starting from the example's ([kit/README.md](kit/README.md) §3); `.githooks/pre-push`, copied from `ci/kit/hooks/pre-push.shim`; the verdict script, one arm per job ending in a counts line (the example's `ci/ci-job.sh`); `ci/image/Dockerfile` on the kit's base; a `Makefile` whose `check` target runs `bash ci/kit/bin/local-ci run --commit HEAD <your local jobs>`; `.github/workflows/ci.yml`, copied from the example's and renamed ([kit/README.md](kit/README.md) §5.5 gives it job by job); and `ci/allowed-signers` holding nothing but a comment line, so the file exists and trusts nobody yet. *Done when* every file is in your working copy.
-4. **Commit, then check.** The checks read the commit, not your working copy, so commit first. Run `bash ci/kit/bin/check-manifest`, then `make check` once, then `bash ci/kit/bin/check-adapter <job>` for each local job but the kit job, `python3 ci/kit/bin/check-workflow` and `python3 ci/kit/bin/check-escaping-reads`. *Done when* each exits 0.
-5. **Write the residual into your own documentation**, from [How trust works](#how-trust-works). *Done when* it is committed on the branch.
-6. **Land it.** Merge `origin/main` into the branch, push with `--no-verify`, and open the pull request saying that its local records are refused until a signer is on `main`. *Done when* its run has executed every job in CI once, written the first green records, and merged.
-7. **Add yourself as a signer.** Your line, `<your git user.email> namespaces="git" <key type> <public key>`, in `ci/allowed-signers`, in a pull request of its own. Its run executes on CI every job whose key covers that file, because `main`'s copy still trusts nobody until this merges. *Done when* it has merged.
-8. **Turn the hook on.** `git config core.hooksPath .githooks`, `git config gpg.format ssh` and `git config user.signingkey <your public key>`. *Done when* `bash ci/kit/bin/check-prereqs` exits 0, `make check` passes, and you have read the facts it wrote.
-9. **Push through the hook.** *Done when* the next pull request's summary shows `local: <your email>` beside each tested job.
-
-The full procedure, with what proves each step done, is [kit/README.md](kit/README.md) §7.
+To adopt the kit in a repository you already have, the full procedure, with what proves each step done, is [kit/README.md](kit/README.md) §7.
 
 ## How trust works
 
