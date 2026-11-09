@@ -80,7 +80,7 @@ A candidate (`v1.0.0-rc.1`) is cut the same way. A final release is tagged on th
 
 ## Versioning
 
-- **MAJOR** means an adopter must act: the manifest format (`manifest v2`), the adapter contract, the key formula or one of the plan's sentences changed.
+- **MAJOR** means an adopter must act: the manifest format (`manifest v2`), the adapter contract, the key formula or a predicate sentence changed. A predicate sentence is what the plan decides by and your workflow reads: a decision value, an existing output's name or meaning, or the outcome of a trust test on a record an earlier release wrote ([kit/README.md](kit/README.md) §5.1).
 - **MINOR** adds something optional: a new directive, kind or scanner. Nothing an adopter has written needs to change.
 - **PATCH** changes no interface: a fix, or a base image digest bump.
 

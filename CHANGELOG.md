@@ -2,6 +2,55 @@
 
 One entry per release, newest first. Each entry names the tag, the date, whether it moves keys (every release does: `ci/kit` is in the key of every adapter-run job, so a kit change re-tests every such job once; see [kit/README.md](kit/README.md) §5.4), the `kit/` tree the tag names (`git rev-parse <tag>^{commit}:kit`), and the adopter's actions in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means the adopter must act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A base image digest bump is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet: nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag names that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
 
+## v1.2.0-rc.1 (2026-11-10)
+
+- MINOR: every record names the platform (os/arch) its verdict ran on, and the
+  plan shows it. The manifest format, the adapter contract, the key formula and
+  every decision are unchanged: each record an earlier release wrote is decided
+  as before. The plan gains a `Platform` column, a `<job>_platform` output and a
+  last clause on a trusted record's note, all additive (kit/README.md §5.1).
+- New: a CI green record is an unsigned tag object of the tested commit whose
+  message is a facts block (`<project>-green v1`: job, key, commit, platform,
+  host, image, run, workflow_ref), with `refs/ci/green/<job>/<key>` naming the
+  tag object (DESIGN.md §5.2). It is still trusted by the check run on its
+  commit, never by a signature.
+- New: a `local` job's platform is the job image's, read inside the image by
+  `container run` after a passing verdict and handed to `record` in the ran
+  file `<git common dir>/<project>-ci/ran/<job>/<key>`. `record` refuses with
+  exit 2, writing nothing, when that file is absent or malformed. Any other
+  job's platform is the runner's.
+- New: the plan trusts both shapes of green record (DESIGN.md §5.4), peeling a
+  tag object to its commit and refusing one whose facts disagree with its ref,
+  in its own sentence. Its summary table gains a `Platform` column between
+  `Record` and `Provenance`, and its outputs gain `<job>_platform` (empty when
+  no record decided or the record is a lightweight one), which an extension
+  cannot write.
+- New: `kit_platform_of` in `lib/keys.sh`, the one computer of the platform
+  string, called by `local-ci`, `container` and `record`.
+- Changed: in the note of a green record that is a tag object, `<sha12>` names
+  the tag object, as it always has for a local record; a lightweight record's
+  note still names its commit.
+- Changed: `local-ci sign` and `push` name the record's platform in their
+  lines. The local facts block and its format line are unchanged, so every
+  local record written by an earlier release stays valid.
+- Fixed: `prune green` ages a green record that is a tag object by its commit's
+  committer date, where it would have kept it as dateless.
+- Moves keys: yes (every adapter-run key moves with `ci/kit`).
+- Proven on: linux/arm64, a workstation run at this tree on 2026-11-10 (`bash
+  kit/tests/run` under bash 3.2 and 5.3: `cases: 1440, failures: 0`; `python3
+  kit/tests/plants`: 112 of 112 red; `bash kit/tests/image --family kitjob`:
+  `cases: 4, failures: 0`), and linux/amd64, the `kit` job of the release pull
+  request's CI run.
+- The `kit/` tree this tag names: `f9b648a78fb85390babef3559e3811b8776e3106`
+- Adopter's actions: none; the workflow's record step is unchanged, and
+  records written by earlier releases stay trusted. One check: `<job>_platform`
+  is now the kit's output name for every job your manifest declares, so a plan
+  extension that writes one fails the plan, naming it; rename yours if you have
+  one.
+- To be proven live by this candidate: GitHub accepting a tag object named
+  `ci/green/<job>/<key>` from the job token. The first write is the example's
+  run of this candidate; `v1.2.0` is cut only after that run is green.
+
 ## v1.1.0 (2026-11-03)
 
 - The `kit-init` release. Its `kit/` tree is `v1.1.0-rc.1`'s, unchanged: the
