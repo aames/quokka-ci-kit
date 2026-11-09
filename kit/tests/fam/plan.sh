@@ -112,6 +112,16 @@ fam_plan_platform() {
   git -C "$FX" push -q --no-verify origin "refs/ci/green/beta/$(fx_key beta):refs/ci/green/beta/$(fx_key beta)"
   plan_run
   has "a ci-only job's record, made on the runner itself, is trusted on any platform" "$work/summary" "| beta | \`$(fx_key beta | cut -c1-16)\` | record at ${obj:0:12}, trusted, darwin/arm64 | darwin/arm64 | ci | **green** |"
+  gfacts "$work/g" beta "s|^platform .*|platform msys_nt-10.0-19045/amd64|; s|^image .*|image none|"; obj="$(grec beta "$(fx_key beta)" "$work/g")"
+  git -C "$FX" push -q --no-verify -f origin "refs/ci/green/beta/$(fx_key beta):refs/ci/green/beta/$(fx_key beta)"
+  plan_run
+  has "a ci-only job's record from a Windows runner (Git Bash's uname) is trusted with its platform" "$work/summary" "| beta | \`$(fx_key beta | cut -c1-16)\` | record at ${obj:0:12}, trusted, msys_nt-10.0-19045/amd64 | msys_nt-10.0-19045/amd64 | ci | **green** |"
+  eq "and its platform is an output" msys_nt-10.0-19045/amd64 "$(out_of beta_platform)"
+  gfacts "$work/g" beta "s|^platform .*|platform Darwin arm64|; s|^image .*|image none|"; obj="$(grec beta "$(fx_key beta)" "$work/g")"
+  git -C "$FX" push -q --no-verify -f origin "refs/ci/green/beta/$(fx_key beta):refs/ci/green/beta/$(fx_key beta)"
+  plan_run
+  eq "a ci-only job's record whose platform is out of shape is not trusted" "gate=run alpha=run delta=run beta=run gamma=run kitself=run" "$(decisions)"
+  has "with the sentence that names the platform it records" "$work/summary" "record at ${obj:0:12} NOT TRUSTED: it records the platform Darwin arm64, which is not of the shape <os>/<arch>"
   # a trusted local record shows its platform
   git -C "$FX" push -q --no-verify origin --delete "refs/ci/green/alpha/$key"
   lfacts "$work/f"; lobj="$(lrec alpha "$key" "$work/f" a)"

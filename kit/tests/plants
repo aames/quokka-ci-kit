@@ -167,6 +167,18 @@ plant("init-python-path", "IMAGE:initpy", "templates/image/python.Dockerfile", o
 plant("init-symlink-targets", "init", "bin/kit-init", once('    out, seen = [], set()\n    root = os.path.realpath(top)\n', '    return []\n    out, seen = [], set()\n    root = os.path.realpath(top)\n'), "the refusal of a target that is a symbolic link or outside the top removed (KI-s finding 1)")
 plant("init-bounded-values", "init", "bin/kit-init", once('    if value == ".":\n        return True\n    if BOUNDED_RE', '    return True\n    if BOUNDED_RE'), "the bound on directory and file names removed (KI-s finding 2)")
 
+# ARCH-1's review (docs/reviews/arch-1-ratification-2026-11-09.md section 5, F-3, F-4, F-8): the green arm's
+# refusals no plant reached, the one platform shape, the empty word, the launcher's ran-file removal, prune's tag age
+plant("green-tag-of-tag", "green", "lib/keys.sh", once("KIT_RECORD_REASON='it is a tag that does not point at a commit'; return 1", ":"), "a tag that does not point at a commit no longer refused")
+plant("green-local-no-platform", "green", "lib/keys.sh", once("""      "") KIT_RECORD_REASON='it records no platform'; return 1 ;;""", """      "") ;;"""), "a local job's green record admitted with no platform")
+plant("green-platform-once", "green", "lib/keys.sh", once("END { if (c != 1) exit 1; print v }", "END { if (c < 1) exit 1; print v }"), "a facts line given twice read as its last value")
+plant("green-other-no-platform", "green", "lib/keys.sh", once("""  elif [ -z "$value" ]; then\n    KIT_RECORD_REASON='it records no platform'; return 1\n  elif""", "  elif"), "an absent platform named as one out of shape")
+plant("green-shape-old", "green", "lib/keys.sh", once("KIT_PLATFORM_SHAPE='^[a-z0-9][a-z0-9._-]*/[a-z0-9_]+$'", "KIT_PLATFORM_SHAPE='^[a-z0-9]+/[a-z0-9_]+$'"), "the platform shape before F-3, refusing a system word with - or .")
+plant("record-shape-old", "record", "lib/keys.sh", once("KIT_PLATFORM_SHAPE='^[a-z0-9][a-z0-9._-]*/[a-z0-9_]+$'", "KIT_PLATFORM_SHAPE='^[a-z0-9]+/[a-z0-9_]+$'"), "the same, seen by the ran file's check")
+plant("keys-platform-empty", "keys", "lib/keys.sh", once('  [ -n "$os" ] && [ -n "$arch" ] || return 1\n', ""), "kit_platform_of's refusal of an empty word removed")
+plant("launcher-ran-rm", "launcher", "bin/container", once('  rm -f -- "$ran"\n', "  :\n"), "an earlier ran file no longer removed before the job")
+plant("prune-tag-date", "prune", "bin/prune", once("date='%(committerdate:unix)%(*committerdate:unix)'", "date='%(committerdate:unix)'"), "a green tag object no longer aged by its commit")
+
 def main(argv):
     only, bash, listing = [], os.environ.get("BASH") or "/bin/bash", False
     i = 0

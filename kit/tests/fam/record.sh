@@ -10,7 +10,7 @@ rec_run() { # rec_run <codes> <bodies> <args...>
   local codes="$1" bodies="$2"; shift 2
   : > "$work/curl.log"; : > "$work/sleep.log"
   REC_RC=0
-  ( cd "$FX" && env -i HOME="$work" PATH="$work/shims:$KITT_SYS_PATH" SYS_PATH="$KITT_SYS_PATH" CURL_CODES="$codes" CURL_BODIES="$bodies" CURL_LOG="$work/curl.log" SLEEP_LOG="$work/sleep.log" \
+  ( cd "$FX" && env -i HOME="$work" PATH="${REC_PATH_PRE:+$REC_PATH_PRE:}$work/shims:$KITT_SYS_PATH" SYS_PATH="$KITT_SYS_PATH" CURL_CODES="$codes" CURL_BODIES="$bodies" CURL_LOG="$work/curl.log" SLEEP_LOG="$work/sleep.log" \
       CURL_TAG_SHA="${CURL_TAG_SHA-$REC_TAG}" GITHUB_RUN_ID=4242 GITHUB_WORKFLOW_REF=fixture/repo/.github/workflows/ci.yml@refs/heads/main \
       GITHUB_TOKEN=t GITHUB_REPOSITORY=fixture/repo "$BASH4" "$KITT_KIT/bin/record" "$@" ) > "$work/rec.out" 2>&1 || REC_RC=$?
 }
@@ -78,6 +78,20 @@ image none
   printf 'platform Linux aarch64\nimage %s\n' "$img" > "$ran"
   rec_run '201 201' 'TAG|{}' alpha "$key" "$sha"
   rc_is "a ran file whose platform is not one word os/arch is refused" 2 "$REC_RC"; eq "no request" 0 "$(posts)"
+  printf 'platform Linux/aarch64\nimage %s\n' "$img" > "$ran"
+  rec_run '201 201' 'TAG|{}' alpha "$key" "$sha"
+  rc_is "a ran file whose platform is one word out of shape is refused" 2 "$REC_RC"; eq "no request" 0 "$(posts)"
+  has "with the sentence that names it" "$work/rec.out" "::error::the ran file $ran records the platform Linux/aarch64, which is not of the shape <os>/<arch>, so no record was written."
+  # the ran file is held to the library's one shape, the plan's: a system word carrying - and . is written as given
+  printf 'platform msys_nt-10.0-19045/amd64\nimage %s\n' "$img" > "$ran"
+  rec_run '201 201' 'TAG|{}' alpha "$key" "$sha"
+  rc_is "a ran file's platform in KIT_PLATFORM_SHAPE, its system word carrying - and ., is recorded" 0 "$REC_RC"
+  has "and named in the line" "$work/rec.out" "recorded refs/ci/green/alpha/$key -> $sha (tag object ${REC_TAG:0:12}, msys_nt-10.0-19045/amd64)"
+  # this runner's platform unread (an empty uname): refused before any request, never `platform /`
+  mkdir -p "$work/nouname"; printf '#!/bin/sh\nexit 0\n' > "$work/nouname/uname"; chmod +x "$work/nouname/uname"
+  REC_PATH_PRE="$work/nouname" rec_run '201 201' 'TAG|{}' beta "$(fx_key beta)" "$sha"
+  rc_is "a runner whose uname says nothing is refused" 2 "$REC_RC"; eq "no request" 0 "$(posts)"
+  has "with the sentence" "$work/rec.out" "::error::this runner did not say its platform, so no record was written."
   printf 'platform linux/arm64\nimage %s\n' "$img" > "$ran"
   rec_run 201 '{}' alpha "$key"
   rc_is "shape: a wrong argument count" 2 "$REC_RC"; eq "and no request was made" 0 "$(posts)"
