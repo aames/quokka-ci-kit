@@ -73,6 +73,10 @@ for n in range(2, 13):
     if n in (11,) or True:
         plant("manifest-rule-%d" % n, "manifest", "bin/check-manifest", lint_rule(n), "lint rule %d removed" % n)
 plant("green-slug", "green", "lib/keys.sh", once('select(.conclusion == "success" and .app.slug == "github-actions")', 'select(.conclusion == "success")'), "the app-slug filter removed")
+plant("green-peel", "green", "lib/keys.sh", once('gh api "repos/${repo}/commits/${commit}/check-runs', 'gh api "repos/${repo}/commits/${sha}/check-runs'), "the check run looked up on the tag object, not its commit")
+plant("green-facts", "green", "lib/keys.sh", once('kit__green_facts "$sha" "$job" "$key" "$commit" || return 3', ':'), "a tag-object record's facts not checked")
+plant("plan-facts-commit", "plan", "lib/keys.sh", once('|| [ "$(kit__local_fact "$facts" commit)" != "$commit" ]; then\n    KIT_RECORD_REASON=', '; then\n    KIT_RECORD_REASON='), "a green record's facts' commit not compared")
+plant("plan-green-linux", "plan", "lib/keys.sh", once('      linux/amd64 | linux/arm64) ;;\n      "") KIT_RECORD_REASON', '      */*) ;;\n      "") KIT_RECORD_REASON'), "a local job's green record admitted on any platform")
 plant("local-verify", "local", "lib/keys.sh", once('if ! ssh-keygen -Y verify -f "$dir/signers" -I "$principal" -n git -s "$dir/sig" < "$dir/payload" > /dev/null 2>&1; then', 'if false; then'), "the -Y verify call removed")
 plant("local-signers", "local", "lib/keys.sh", once('git -C "$repo" show "${main}:${signers}"', 'git -C "$repo" show "${obj}^{commit}:${signers}"'), "main's signers replaced by the checkout's")
 plant("plan-schedule", "plan", "bin/plan", once('if [ "$CI_PLAN_EVENT" = schedule ]; then\n  CI_PLAN_TASK=weekly\nfi', ':'), "the schedule arm removed")
@@ -125,6 +129,7 @@ plant("manifest-socket-install", "manifest", "bin/check-manifest", once('has_wor
 plant("manifest-socket-service", "manifest", "bin/check-manifest", once('has_word "${W[1]}" "$socketed" && finding "$LINE" "service names', 'false && finding "$LINE" "service names'), "the service-on-a-socket-job clause removed")
 plant("keys-facts-names", "manifest", "lib/keys.sh", once('split("job key commit started duration_s platform host docker image not_run log_sha256", a, " ")', 'split("", a, " ")'), "the facts-name list emptied")
 plant("plan-outputs-live", "extension", "bin/plan", once("printf '%s=%s\\n' \"$job\" \"${kit_snap_decision[$job]}\"", "printf '%s=%s\\n' \"$job\" \"${decision[$job]}\""), "the kit jobs' outputs written from the live arrays")
+plant("plan-platform-live", "extension", "bin/plan", once('value="${kit_snap_platform[$job]}"', 'value="${platform[$job]}"'), "the platform outputs written from the live array")
 plant("plan-key-check", "extension", "bin/plan", once('      || kit__ext_refuse_key "$job"', '      || :'), "the key comparison removed")
 plant("manifest-always-on", "manifest", "bin/check-manifest", once('    || finding "$(line_of paths "$KIT_ALWAYS_ON")" "the key of the always-on job', '    || : "$(line_of paths "$KIT_ALWAYS_ON")" "the key of the always-on job'), "rule 3's always-on clause removed")
 plant("manifest-copy-from", "manifest", "bin/check-manifest", once('finding0 "${KIT_IMAGE} line ${at}: COPY --from=', ': "${KIT_IMAGE} line ${at}: COPY --from='), "the COPY --from= clause removed")
