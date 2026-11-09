@@ -93,7 +93,8 @@ if [ "$class" = local ]; then
     exit 2
   fi
   ran_text="$(cat "$ran")"
-  if ! [[ "$ran_text" =~ ^platform\ ([a-z0-9]+/[a-z0-9_]+)$'\n'image\ (sha256:[0-9a-f]{64})$ ]]; then
+  ran_shape="^platform ([a-z0-9]+/[a-z0-9_]+)"$'\n'"image (sha256:[0-9a-f]{64})\$"
+  if ! [[ "$ran_text" =~ $ran_shape ]]; then
     echo "::error::the ran file ${ran} is not the two lines platform and image, so no record was written."
     exit 2
   fi
