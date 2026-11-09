@@ -114,9 +114,8 @@ One entry per release, newest first. Each entry names the tag, the date, whether
   code and message, and exits 1.
 - Fixed: `kit-init` refuses a detached HEAD when it would commit, and says when
   it guessed the main branch because `origin/HEAD` is not set.
-- Reviewed: a security read of `kit-init` before this release, recorded in
-  `docs/reviews/security-kit-init-2026-11-03.md`: one medium and five low
-  findings, all fixed above, and six notes left for later releases
+- Reviewed: a security read of `kit-init` before this release found one medium
+  and five low findings, all fixed above, and six notes left for later releases
   (docs/kit-init.md, Revision 4).
 - Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
   formula, the plan's sentences, `check-host`'s file list and allow-list; every

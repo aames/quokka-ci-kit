@@ -12,7 +12,7 @@ Status: specification, built, corrected and proven; the proofs ratified on 2026-
 
 ## Revision 4 (2026-11-03): the security read, six fixes
 
-A security read of the generator, KI-s, was made at `dbeebc2` and recorded as [docs/reviews/security-kit-init-2026-11-03.md](reviews/security-kit-init-2026-11-03.md). Piece 3c (commit `0a1d328`) fixed its medium finding and its five lows. That piece was read against the report and against this document, and its claims were re-run, not taken on report. **Verdict: the six fixes are ratified as built. The six notes wait for later releases, each for its reason (R4-8). Nothing here blocks `v1.1.0-rc.1`.** Each ruling below gives its reason, and the body carries `(rev 4, R4-n)` where it changed. Line numbers of the kit are those of `0a1d328`.
+A security read of the generator, KI-s, was made at `dbeebc2`; its report is kept in the maintainers' notes, outside this repository. Piece 3c (commit `0a1d328`) fixed its medium finding and its five lows. That piece was read against the report and against this document, and its claims were re-run, not taken on report. **Verdict: the six fixes are ratified as built. The six notes wait for later releases, each for its reason (R4-8). Nothing here blocks `v1.1.0-rc.1`.** Each ruling below gives its reason, and the body carries `(rev 4, R4-n)` where it changed. Line numbers of the kit are those of `0a1d328`.
 
 What was re-run on this workstation (macOS, arm64):
 
@@ -746,9 +746,8 @@ As written at revision 3 (R3-7) and revision 4 (R4-9), equal to the entry in `CH
   code and message, and exits 1.
 - Fixed: `kit-init` refuses a detached HEAD when it would commit, and says when
   it guessed the main branch because `origin/HEAD` is not set.
-- Reviewed: a security read of `kit-init` before this release, recorded in
-  `docs/reviews/security-kit-init-2026-11-03.md`: one medium and five low
-  findings, all fixed above, and six notes left for later releases
+- Reviewed: a security read of `kit-init` before this release found one medium
+  and five low findings, all fixed above, and six notes left for later releases
   (docs/kit-init.md, Revision 4).
 - Unchanged: the manifest format (`manifest v1`), the adapter contract, the key
   formula, the plan's sentences, `check-host`'s file list and allow-list; every
@@ -892,7 +891,7 @@ Estimate about 260k (range 220k to 320k): the 220k first planned, plus the Pytho
 
 It does not touch `CHANGELOG.md`, `kit/README.md` or `docs/`, whose lines for it are written at revision 3; the release pull request reads them against what landed. Then: `bash kit/tests/run` under bash 3.2 and a current bash, `python3 kit/tests/plants` whole, `python3 kit/bin/check-host kit/`, and `bash kit/tests/image` on this arm64 workstation, each exit code pasted. Meets AC-KI-35 for `ci/KIT-VERSION`, AC-KI-37, AC-KI-38 and AC-KI-39. Estimate about 250k (range 200k to 320k): two small generator edits, one fence helper at three sites, about fifteen fixture renames with their copy helpers in two harnesses, about eight cases and two plants, and the full re-runs, `tests/image` cold among them because the fixtures move.
 
-Total first planned about 820k, range 700k to 1.0M; from here, pieces 1b, 2 and 3 are about 510k (range 420k to 620k). `v1.1.0-rc.1` waits for all three, AC-KI-36 included (rev 2, R-5), and for piece 3b (rev 3, R3-3 and R3-5). A security read is worth asking for once the first piece lands, scoped to the generator's network lookups, its subprocess set and the signer handling. (Rev 4: done as KI-s at `dbeebc2`, [docs/reviews/security-kit-init-2026-11-03.md](reviews/security-kit-init-2026-11-03.md). Its six fixes are piece 3c, `0a1d328`, ratified at R4-2 to R4-7; its notes are R4-8.)
+Total first planned about 820k, range 700k to 1.0M; from here, pieces 1b, 2 and 3 are about 510k (range 420k to 620k). `v1.1.0-rc.1` waits for all three, AC-KI-36 included (rev 2, R-5), and for piece 3b (rev 3, R3-3 and R3-5). A security read is worth asking for once the first piece lands, scoped to the generator's network lookups, its subprocess set and the signer handling. (Rev 4: done as KI-s at `dbeebc2`; the report is in the maintainers' notes, outside this repository. Its six fixes are piece 3c, `0a1d328`, ratified at R4-2 to R4-7; its notes are R4-8.)
 
 ## 12. Open questions
 
