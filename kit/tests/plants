@@ -79,6 +79,8 @@ plant("plan-schedule", "plan", "bin/plan", once('if [ "$CI_PLAN_EVENT" = schedul
 plant("plan-prefix", "plan", "bin/plan", once('ref_group="weekly-${ref_group}"', 'ref_group="${ref_group}"'), "the weekly- prefix removed")
 plant("extension-snapshot", "extension", "bin/plan", once('[ "${KIT_DECISION[$job]-}" = "${kit_snap_decision[$job]}" ] || kit__ext_refuse "$job"', ':'), "the snapshot comparison removed")
 plant("record-422", "record", "bin/record", once("if grep -q 'Reference already exists' \"$body\"; then", "if true; then"), "the 422 text check removed")
+plant("record-ran", "record", "bin/record", once('if ! [ -f "$ran" ]; then', 'if false; then'), "the ran file's presence check removed")
+plant("record-ref-at-commit", "record", "bin/record", once('"{\\"ref\\":\\"${ref}\\",\\"sha\\":\\"${tag}\\"}"', '"{\\"ref\\":\\"${ref}\\",\\"sha\\":\\"${sha}\\"}"'), "the ref pointed at the commit, not the tag object")
 plant("prune-tip", "prune", "bin/prune", once('for k in ${keep[@]+"${keep[@]}"}; do [ "$k" != "$ref" ] || continue 2; done', ':'), "the tip exception removed")
 plant("driver-trap", "driver", "bin/container", once('trap cleanup EXIT', ':'), "the cleanup trap removed")
 plant("driver-rename", "driver", "bin/local-ci", once('if mv "$lock" "$aside" 2> /dev/null; then', 'if printf \'%s\\n\' "$$" > "${lock}/pid"; then'), "the stale-lock rename replaced by a pid write")
