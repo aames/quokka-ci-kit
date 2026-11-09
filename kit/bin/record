@@ -33,8 +33,8 @@
 #   run, workflow_ref  GITHUB_RUN_ID and GITHUB_WORKFLOW_REF (`unknown` when
 #                      unset)
 # Every platform is kit_platform_of's string. A `local` job with no ran file,
-# or one that is not those two lines, is refused with exit 2 before any
-# request: a record must not be written without its platform, and one whose
+# or one that is not those two lines with a platform of the library's
+# KIT_PLATFORM_SHAPE, is refused with exit 2 before any request: a record must not be written without its platform, and one whose
 # platform came from the runner would say something false.
 #
 # Shapes are refused with exit 2 before any request: a wrong argument count,
@@ -79,6 +79,12 @@ if [ -z "$class" ]; then
   exit 2
 fi
 platform_of() { bash -c '. "$1" && kit_platform_of "$2" "$3"' _ "$here/../lib/keys.sh" "$1" "$2"; }
+# The one shape of a platform string, the library's KIT_PLATFORM_SHAPE.
+platform_shape="$(bash -c '. "$1" && printf "%s" "$KIT_PLATFORM_SHAPE"' _ "$here/../lib/keys.sh" 2>/dev/null)" || platform_shape=""
+if [ -z "$platform_shape" ]; then
+  echo "::error::the platform shape could not be read from ${here}/../lib/keys.sh, so no record was written."
+  exit 2
+fi
 one_word() { # one_word <value>: the value when it is one word, else `unknown`
   if [[ "${1:-}" =~ ^[^[:space:]]+$ ]]; then printf '%s' "$1"; else printf unknown; fi
 }
@@ -93,12 +99,16 @@ if [ "$class" = local ]; then
     exit 2
   fi
   ran_text="$(cat "$ran")"
-  ran_shape="^platform ([a-z0-9]+/[a-z0-9_]+)"$'\n'"image (sha256:[0-9a-f]{64})\$"
+  ran_shape="^platform ([^[:space:]]+)"$'\n'"image (sha256:[0-9a-f]{64})\$"
   if ! [[ "$ran_text" =~ $ran_shape ]]; then
     echo "::error::the ran file ${ran} is not the two lines platform and image, so no record was written."
     exit 2
   fi
   platform="${BASH_REMATCH[1]}" image="${BASH_REMATCH[2]}"
+  if ! [[ "$platform" =~ $platform_shape ]]; then
+    echo "::error::the ran file ${ran} records the platform ${platform}, which is not of the shape <os>/<arch>, so no record was written."
+    exit 2
+  fi
 else
   platform="$host" image=none
 fi

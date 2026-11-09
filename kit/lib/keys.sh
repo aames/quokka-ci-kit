@@ -87,6 +87,15 @@ kit_platform_of() {
   printf '%s/%s\n' "$os" "$arch"
 }
 
+# KIT_PLATFORM_SHAPE: the ONE shape of a platform string, every string
+# kit_platform_of writes on a host the kit admits: a lower-case system word,
+# which may carry `.`, `_` or `-` as Git Bash's and Cygwin's unames do
+# (`mingw64_nt-10.0-19045`, `cygwin_nt-10.0`), a `/`, and an architecture
+# word. Read by the plan's green arm for a job whose verdict ran on the
+# runner and by `record` for the launcher's ran file. A `local` job's green
+# record is held to linux/amd64 or linux/arm64 besides (kit__green_facts).
+KIT_PLATFORM_SHAPE='^[a-z0-9][a-z0-9._-]*/[a-z0-9_]+$'
+
 # --- THE PARSER -----------------------------------------------------------
 #
 # kit__manifest_awk <label>: the manifest text on stdin. On success, exit 0
@@ -579,7 +588,8 @@ kit_record_trusted() {
 # `<project>-green v1`; `job`, `key` and `commit` the ref's job, the ref's key
 # and the peeled commit; for a `local` job, whose verdict runs in the job
 # image, a `platform` of linux/amd64 or linux/arm64 and an `image` id; for any
-# other job, a `platform` of the shape <os>/<arch>.
+# other job, a `platform` of KIT_PLATFORM_SHAPE. A `platform` line absent or
+# given twice is no platform.
 kit__green_facts() {
   local obj="$1" job="$2" key="$3" commit="$4" raw header facts value class="" i
   local format
@@ -615,8 +625,10 @@ kit__green_facts() {
     if ! [[ "$(kit__local_fact "$facts" image)" =~ ^sha256:[0-9a-f]{64}$ ]]; then
       KIT_RECORD_REASON='it records no image id of the job image'; return 1
     fi
-  elif ! [[ "$value" =~ ^[a-z0-9]+/[a-z0-9_]+$ ]]; then
+  elif [ -z "$value" ]; then
     KIT_RECORD_REASON='it records no platform'; return 1
+  elif ! [[ "$value" =~ $KIT_PLATFORM_SHAPE ]]; then
+    KIT_RECORD_REASON="it records the platform ${value}, which is not of the shape <os>/<arch>"; return 1
   fi
   KIT_RECORD_PLATFORM="$value"
 }
