@@ -5,7 +5,7 @@
 # library drops changes the count.
 fam_green() {
   need_bash4 green || return 0
-  local sha key rc
+  local sha key rc obj
   fx_new green
   sha="$(git -C "$FX" rev-parse HEAD)"
   key="$(fx_key alpha)"
@@ -39,5 +39,23 @@ fam_green() {
   eq "1: an unreachable API trusts no record" 1 "$(trust)"
   unset GH_FAIL
   eq "1: no repository to ask" 1 "$(lib4 "kit_record_trusted '' $sha alpha $key; echo \$?" 2> /dev/null)"
+  # both shapes (DESIGN.md 5.4): a tag object is peeled, its facts agree, its platform is read
+  printf '%s|alpha|success|github-actions\n' "$sha" > "$GH_TABLE"
+  eq "a lightweight record reads no platform" "0 []" "$(lib4 "kit_record_trusted fixture/repo $sha alpha $key; echo \"\$? [\$KIT_RECORD_PLATFORM]\"" 2> /dev/null)"
+  gfacts "$work/g" alpha; obj="$(grec alpha "$key" "$work/g")"
+  eq "0: a tag-object record, peeled to its commit, with agreeing facts, and its platform" "0 [linux/amd64]" \
+    "$(lib4 "kit_record_trusted fixture/repo $obj alpha $key; echo \"\$? [\$KIT_RECORD_PLATFORM]\"" 2> /dev/null)"
+  eq "the same with the manifest loaded first" "0 [linux/amd64]" \
+    "$(lib4 "kit_manifest_load HEAD; kit_record_trusted fixture/repo $obj alpha $key; echo \"\$? [\$KIT_RECORD_PLATFORM]\"" 2> /dev/null)"
+  gfacts "$work/g" alpha "s/^key .*/key $(printf 'b%.0s' $(seq 1 64))/"; obj="$(grec alpha "$key" "$work/g")"
+  eq "3: a tag object whose facts name another key, with the reason and no platform" "3 [] its facts' job, key or commit differ from its ref and its commit" \
+    "$(lib4 "kit_record_trusted fixture/repo $obj alpha $key; echo \"\$? [\$KIT_RECORD_PLATFORM] \$KIT_RECORD_REASON\"" 2> /dev/null)"
+  gfacts "$work/g" alpha "/^image /d"; obj="$(grec alpha "$key" "$work/g")"
+  eq "3: a local job's tag object with no image id" "3 it records no image id of the job image" \
+    "$(lib4 "kit_record_trusted fixture/repo $obj alpha $key; echo \"\$? \$KIT_RECORD_REASON\"" 2> /dev/null)"
+  gfacts "$work/g" alpha; obj="$(grec alpha "$key" "$work/g")"
+  printf '%s|alpha|failure|github-actions\n' "$sha" > "$GH_TABLE"
+  eq "1: a tag object with agreeing facts still needs the check run, and reads no platform" "1 []" \
+    "$(lib4 "kit_record_trusted fixture/repo $obj alpha $key; echo \"\$? [\$KIT_RECORD_PLATFORM]\"" 2> /dev/null)"
   unset GH_TABLE GH_LOG
 }
