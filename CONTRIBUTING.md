@@ -50,6 +50,34 @@ shellcheck kit/bin/<file>     # exit 0
 
 `DESIGN.md` is the design reference and `kit/README.md` the reference for the commands and the manifest. Code comments cite their sections as `DESIGN.md 6.2` or `pattern 6.2`, so keep a section's number when you change its text. A change to `kit/README.md` changes the hash of the `kit/` tree, like any change under `kit/`.
 
+## How we write
+
+These documents are read by people who have never seen this project, so they are written the way a careful colleague would explain things across a desk. When you add or change text:
+
+- Write for a stranger, in plain British English. Short sentences, one idea each. "You" for the reader, "we" for the maintainers.
+- Say what a thing does and what happens when it fails. "The check compares `ci/kit` with the tree hash in `ci/KIT-VERSION` and fails if they differ", not "the lint holds `ci/kit` equal to the tree".
+- Introduce a term once, in ordinary words, then use it consistently. DESIGN.md §2 is the glossary; don't invent a second name for something it already names.
+- Give the reason in words. A rule without its reason gets argued about at every review, and a rule stated as a slogan ("refuse, never skip") needs the sentence after it that says what that means here.
+- Keep code identifiers, commands, file names and every sentence a program prints exactly as they are. Tests hold the printed sentences, and a reader who copies a command needs it to work.
+- No capitals for emphasis in the middle of a sentence. Bold the term being defined, once.
+- Keep internal records out of the public repository: review notes, build plans, token costs, who built what. The documents describe the kit as it is, not how it was made.
+
+Some words from the kit's earlier drafts, and what to say instead:
+
+| Instead of | Say |
+|---|---|
+| fence, lint | check (the workflow check, the manifest check) |
+| arm (of the trust check) | side (the CI side, the local side) |
+| arm (of the test script) | section |
+| verdict, verdict script | result, or pass and fail; the test script (which the manifest calls the adapter) |
+| the residual | the trust paragraph, or what a local record does not prove |
+| the landing | the first pull request |
+| red once, proven red-once | the test has been seen to fail without the fix |
+| X holds Y to Z; X names Y | X requires Y to equal Z, X checks Y; X lists Y, X gives Y |
+| moves keys | changes keys |
+
+The quokkas stay.
+
 ## How a release is cut
 
 1. **The release pull request** adds a new entry at the top of `CHANGELOG.md`: the tag, the date, whether it changes keys (every release does, because `ci/kit` is in the key of every job that runs through the test script), what adopters need to do, and the hash of the `kit/` tree the tag will contain, written in place of its placeholder. The tag points at that pull request's merge commit, so the entry in the tagged commit carries the hash. `CHANGELOG.md` sits outside `kit/`, so writing the entry doesn't change the hash it records. Nothing else under `kit/` changes after the entry is written. At the first release, the same pull request fills in the release signer's line and fingerprint in [README.md](README.md), under "Releases and the release signer". Check the hash before you push:
