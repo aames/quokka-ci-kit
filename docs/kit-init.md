@@ -247,7 +247,26 @@ Written as one comment line, from `kit/templates/allowed-signers`:
 
 Agents that work in an adopter's repository (Codex reads `AGENTS.md`, Claude Code reads `CLAUDE.md`) need the same few facts a new contributor does, or they push with `--no-verify`, edit `ci/kit/`, or widen a key to make a red go away. So `kit-init` writes one short section into each file: created when the file is absent, appended after one blank line when it exists, refused when the file already holds the section's begin marker (§2.3). `--no-agent-files` skips both; `--agent-files-only` writes only these two, for a project that adopted without the generator.
 
-**The text is one template**, `kit/templates/agents/section.md`, and it is the only copy. The generator substitutes its tokens (§7.2); the kit's guide for adopting with an agent (`docs/adopt-with-an-agent.md`) points an agent at `ci/kit/templates/agents/section.md` in the vendored tree, or `kit/templates/agents/section.md` in the kit repository, and holds no copy of its lines; `kit/README.md` cites it the same way, and so does this document. A guard in the kit repository's own workflow fails when either of those two documents repeats a body line of the template. Why: two copies of an instruction drift apart, and an agent that reads the stale one does the wrong thing with confidence.
+**The text is one template**, `kit/templates/agents/section.md`, and that file is the source of truth. The generator substitutes its tokens (§7.2). The kit's guide for adopting with an agent (`docs/adopt-with-an-agent.md`) points an agent at `ci/kit/templates/agents/section.md` in the vendored tree, or `kit/templates/agents/section.md` in the kit repository, and holds no copy of its lines; `kit/README.md` cites it the same way. A guard in the kit repository's own workflow fails when either of those two documents repeats a body line of the template. Why: two copies of an instruction drift apart, and an agent that reads the stale one does the wrong thing with confidence. The copy below is here so that you can read it without opening the file; if the two ever differ, the file is right.
+
+```markdown
+<!-- quokka-ci-kit section begin: written by kit-init from ci/kit/templates/agents/section.md -->
+## quokka-ci-kit
+
+CI in this repository uses quokka-ci-kit, vendored at `ci/kit/`. How it works here:
+
+- `ci/manifest` lists each CI job and the paths its key is a hash of. A job is skipped when a trusted record of its key exists, and runs otherwise.
+- `@@ADAPTER@@` is the one test script, with a section for each job. CI and `@@CHECK@@` run the same script in the same job image.
+- Run `@@CHECK@@` before you push. It tests the HEAD commit, not uncommitted changes, so commit first. It runs @@JOBS@@.
+- The pre-push hook signs a record of each job that passed and pushes it alongside the branch. Each clone needs `git config core.hooksPath .githooks` once.
+- Never edit anything under `ci/kit/`. Update the kit with `bash ci/kit/bin/kit-update <tag>` from a checkout of @@MAIN@@, in a pull request of its own.
+- To add a job, add its lines to `ci/manifest`, its section to `@@ADAPTER@@` and its job to `@@WORKFLOW@@`. Commit, then run `bash ci/kit/bin/check-manifest`, `python3 ci/kit/bin/check-workflow`, `python3 ci/kit/bin/check-escaping-reads` and `@@CHECK@@`, then `bash ci/kit/bin/check-adapter <job>` once it passes.
+- Never push with `--no-verify`. The only exception was the pull request that added the kit.
+- Never put a secret in `ci/manifest` or `@@ADAPTER@@`. Both are committed, and the manifest refuses names that look like secrets.
+- Change `@@SIGNERS@@` or `ci/KIT-SIGNERS` only when a person asks you to. Each is a trust file and changes in a reviewed pull request of its own.
+- If `@@CHECK@@` fails, a job has failed. Fix the cause; never narrow a job's paths, change a pin or edit a count to make it pass.
+<!-- quokka-ci-kit section end -->
+```
 
 The section's markers are HTML comments, so they do not render. They would let a later release replace the section mechanically; that refresh is not built in this version (§1).
 
