@@ -2,6 +2,40 @@
 
 One entry per release, newest first. Each entry names the tag, the date, whether it moves keys (every release does: `ci/kit` is in the key of every adapter-run job, so a kit change re-tests every such job once; see [kit/README.md](kit/README.md) §5.4), the `kit/` tree the tag names (`git rev-parse <tag>^{commit}:kit`), and the adopter's actions in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means the adopter must act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A base image digest bump is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet: nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag names that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
 
+## v1.2.0-rc.1 (unreleased)
+
+- MINOR: every record names the platform (os/arch) its verdict ran on, and the
+  plan shows it. The manifest format, the adapter contract, the key formula and
+  the plan's sentences are unchanged; a trusted record's sentence gains the
+  platform as a last clause.
+- New: a CI green record is an unsigned tag object of the tested commit whose
+  message is a facts block (`<project>-green v1`: job, key, commit, platform,
+  host, image, run, workflow_ref), with `refs/ci/green/<job>/<key>` naming the
+  tag object (DESIGN.md §5.2). It is still trusted by the check run on its
+  commit, never by a signature.
+- New: a `local` job's platform is the job image's, read inside the image by
+  `container run` after a passing verdict and handed to `record` in the ran
+  file `<git common dir>/<project>-ci/ran/<job>/<key>`. `record` refuses with
+  exit 2, writing nothing, when that file is absent or malformed. Any other
+  job's platform is the runner's.
+- New: the plan trusts both shapes of green record (DESIGN.md §5.4), peeling a
+  tag object to its commit and refusing one whose facts disagree with its ref,
+  in its own sentence. Its summary table gains a `Platform` column between
+  `Record` and `Provenance`, and its outputs gain `<job>_platform` (empty when
+  no record decided or the record is a lightweight one), which an extension
+  cannot write.
+- New: `kit_platform_of` in `lib/keys.sh`, the one computer of the platform
+  string, called by `local-ci`, `container` and `record`.
+- Changed: `local-ci sign` and `push` name the record's platform in their
+  lines. The local facts block and its format line are unchanged, so every
+  local record written by an earlier release stays valid.
+- Fixed: `prune green` ages a green record that is a tag object by its commit's
+  committer date, where it would have kept it as dateless.
+- Moves keys: yes (every adapter-run key moves with `ci/kit`).
+- The `kit/` tree this tag names: (written by the release pull request)
+- Adopter's actions: none; the workflow's record step is unchanged, and
+  records written by earlier releases stay trusted.
+
 ## v1.1.0 (2026-11-03)
 
 - The `kit-init` release. Its `kit/` tree is `v1.1.0-rc.1`'s, unchanged: the

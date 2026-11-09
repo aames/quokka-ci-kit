@@ -185,7 +185,7 @@ git push --no-verify -u origin adopt-kit
 gh pr create --fill
 ```
 
-In the run, `checks` plans: its summary table lists each job with its key, the record it found, the record's provenance, and the decision. Every decision is **run** this time, because no record exists for your new keys and `main`'s signers file still names the example's author. Each job that passes writes `refs/ci/green/<job>/<key>`.
+In the run, `checks` plans: its summary table lists each job with its key, the record it found, the platform that record's run was on, the record's provenance, and the decision. Every decision is **run** this time, because no record exists for your new keys and `main`'s signers file still names the example's author. Each job that passes writes `refs/ci/green/<job>/<key>`.
 
 *Done when* every job in the run is green.
 
