@@ -207,7 +207,7 @@ bash ci/kit/bin/check-prereqs
 
 Then change something under `api/` or `web/` (a change only to docs changes no key, so nothing would run), commit it on a new branch, and push without `--no-verify`. The hook runs each job whose key changed, inside the same image CI uses, and on a pass signs and pushes a record. Look for lines like `api: signed refs/ci/local/api/<key>`. A failing job stops the push. Open the pull request.
 
-*Done when* the pull request's plan summary shows `local: <your email>` in the provenance column next to each job you changed, and only `checks` ran.
+*Done when* the pull request's plan summary shows `local: <your email>` in the provenance column next to each job you changed, with `linux/arm64` or `linux/amd64` in the Platform column (the job image's platform, which is what your tests ran on), and only `checks` ran.
 
 ```text
         .-"""-.          .---.
