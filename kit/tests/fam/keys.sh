@@ -153,4 +153,6 @@ rc=2" "$out"
   eq "kit_pin_at: the toolchain-line, first-line and readonly-version kinds, read as data" "go1.27.3 v24.1.0 v0.11.0 3.14" \
     "$(KIT_KEYS_REPO="$FX" "$BASH" -c ". '$KITT_KIT/lib/keys.sh'; echo \$(kit_pin_at HEAD go) \$(kit_pin_at HEAD node) \$(kit_pin_at HEAD shellcheck) \$(kit_pin_at HEAD python)")"
   eq "kit_escaping_reads: the entries as written" "3" "$(KIT_KEYS_REPO="$FX" "$BASH" -c ". '$KITT_KIT/lib/keys.sh'; kit_manifest_load HEAD; kit_escaping_reads | wc -l | tr -d ' '")"
+  eq "kit_platform_of: the system lower-cased, x86_64 as amd64, aarch64 as arm64, under this bash" "linux/amd64 linux/arm64 darwin/arm64 freebsd/riscv64" \
+    "$("$BASH" -c ". '$KITT_KIT/lib/keys.sh'; echo \$(kit_platform_of Linux x86_64) \$(kit_platform_of Linux aarch64) \$(kit_platform_of Darwin arm64) \$(kit_platform_of FreeBSD riscv64)")"
 }

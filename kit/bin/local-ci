@@ -353,17 +353,11 @@ lock_take() {
   printf '%s\n' "$$" > "${lock}/pid"
 }
 
-# platform_of <uname -s> <uname -m>: `<os>/<arch>`, lower-case system;
-# x86_64 is amd64, aarch64 is arm64.
+# platform_of <uname -s> <uname -m>: `<os>/<arch>` by the sibling library's
+# kit_platform_of, the one computer of the string, in a child under "$BASH".
 platform_of() {
-  local os="$1" arch="$2"
-  case "$os" in
-    Linux) os=linux ;;
-    Darwin) os=darwin ;;
-    *) os="$(tr '[:upper:]' '[:lower:]' <<< "$os")" ;;
-  esac
-  case "$arch" in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; esac
-  printf '%s/%s\n' "$os" "$arch"
+  # shellcheck disable=SC2016
+  "$BASH" -c '. "$1"; kit_platform_of "$2" "$3"' _ "${here}/../lib/keys.sh" "$1" "$2"
 }
 
 # The image's answers to the reader, as two lists side by side, and the

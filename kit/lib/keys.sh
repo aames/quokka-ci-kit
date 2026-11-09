@@ -34,6 +34,7 @@
 # BASH 3.2. The functions the host reaches run under the macOS /bin/bash:
 #   kit_key  kit_keys  kit_key_paths  kit_pin_tools  kit_count_fields
 #   kit_pin_at  kit_manifest_load  kit_manifest_dump  kit_jobs  kit_env_reserved
+#   kit_platform_of
 # and call only these host tools: git, awk, cut, and sha256sum or
 # shasum -a 256. No declare -A, mapfile, readarray, case-changing expansions,
 # [[ -v ]], wait -n, negative subscripts or coproc anywhere in this file. The
@@ -66,6 +67,24 @@ kit_env_reserved() {
     esac
   done
   return 1
+}
+
+# --- THE PLATFORM STRING ---------------------------------------------------
+#
+# kit_platform_of <uname -s> <uname -m>: `<os>/<arch>`, the system
+# lower-cased, x86_64 read as amd64 and aarch64 as arm64 (DESIGN.md 6.5's
+# `platform` row). The ONE computer of the string: the driver, the launcher
+# and the record writer all call it, so a local record's platform and a CI
+# record's cannot be spelled two ways.
+kit_platform_of() {
+  local os="${1:-}" arch="${2:-}"
+  case "$os" in
+    Linux) os=linux ;;
+    Darwin) os=darwin ;;
+    *) os="$(awk -v s="$os" 'BEGIN { print tolower(s) }')" ;;
+  esac
+  case "$arch" in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; esac
+  printf '%s/%s\n' "$os" "$arch"
 }
 
 # --- THE PARSER -----------------------------------------------------------
