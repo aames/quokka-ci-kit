@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Each entry names the tag, the date, whether it moves keys (every release does: `ci/kit` is in the key of every adapter-run job, so a kit change re-tests every such job once; see [kit/README.md](kit/README.md) §5.4), the `kit/` tree the tag names (`git rev-parse <tag>^{commit}:kit`), and the adopter's actions in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means the adopter must act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A base image digest bump is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet: nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag names that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
 
-## v1.2.0-rc.1 (unreleased)
+## v1.2.0-rc.1 (2026-11-10)
 
 - MINOR: every record names the platform (os/arch) its verdict ran on, and the
   plan shows it. The manifest format, the adapter contract, the key formula and
@@ -36,7 +36,12 @@ One entry per release, newest first. Each entry names the tag, the date, whether
 - Fixed: `prune green` ages a green record that is a tag object by its commit's
   committer date, where it would have kept it as dateless.
 - Moves keys: yes (every adapter-run key moves with `ci/kit`).
-- The `kit/` tree this tag names: (written by the release pull request)
+- Proven on: linux/arm64, a workstation run at this tree on 2026-11-10 (`bash
+  kit/tests/run` under bash 3.2 and 5.3: `cases: 1440, failures: 0`; `python3
+  kit/tests/plants`: 112 of 112 red; `bash kit/tests/image --family kitjob`:
+  `cases: 4, failures: 0`), and linux/amd64, the `kit` job of the release pull
+  request's CI run.
+- The `kit/` tree this tag names: `f9b648a78fb85390babef3559e3811b8776e3106`
 - Adopter's actions: none; the workflow's record step is unchanged, and
   records written by earlier releases stay trusted. One check: `<job>_platform`
   is now the kit's output name for every job your manifest declares, so a plan
