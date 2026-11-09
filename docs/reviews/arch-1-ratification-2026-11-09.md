@@ -2,7 +2,7 @@
 
 The piece: branch `os-arch`, ten commits over `main` 000ce92 (c933e13 to 3d3eb32), step 1 of the owner's decision of 2026-11-09, "every run signs with os/arch now". Step 2 (per-job platform targets, a record that counts only for its platform, a non-container target such as OpenBSD) is deferred, and nothing here may presume its shape.
 
-**Verdict: approve with three bounded fixes (one fix piece, about 100k to 150k), then the release order in section 6.** Every claim the builder made re-ran and held but one count: 1,415 cases and 0 failures under both bashes, every plant red (seven new plants, not the nine reported), the new cases red against main's kit, 1,404 cases inside the real image with the eleven-case gap traced to one documented guard. Seven rulings are below. No finding is critical or high; one count in the report (nine new plants) is seven. The one open fact is GitHub accepting the tag name `ci/green/<job>/<key>`, and the release order exists to prove it before `v1.2.0`. Nothing presumes step 2's shape (R-7). The documents are amended to match the rulings (section 4).
+**Verdict: approve with four bounded fixes in one fix piece (about 135k by the parts; quote no less than 150k), then the release order in section 6.** Every claim the builder made re-ran and held but one count: 1,415 cases and 0 failures under both bashes, every plant red (seven new plants, not the nine reported), the new cases red against main's kit, 1,404 cases inside the real image with the eleven-case gap traced to one documented guard. Seven rulings are below. No finding is critical or high; one count in the report (nine new plants) is seven. The one open fact is GitHub accepting the tag name `ci/green/<job>/<key>`, and the release order exists to prove it before `v1.2.0`. Nothing presumes step 2's shape (R-7). The documents are amended to match the rulings (section 4).
 
 ## 1. Claims re-run
 
@@ -89,7 +89,7 @@ QUICKSTART.md needed nothing: its one changed sentence matches the plan as built
 3. F-2: CONTRIBUTING.md:83 restates kit/README.md §5.1's definition in one sentence. About 10k.
 4. The proof gaps of section 5 as cases and plants, F-8's two plants among them, in the same piece. About 70k.
 
-None of the three blocks the candidate: F-3 bites only on a runner the example does not use, and F-2 is wording. The fix piece may therefore land before `rc.1` (preferred, one candidate) or between `rc.1` and `v1.2.0` as `rc.2`. Release order:
+None of the four blocks the candidate: F-3 bites only on a runner the example does not use, and F-2 is wording. The fix piece may therefore land before `rc.1` (preferred, one candidate) or between `rc.1` and `v1.2.0` as `rc.2`. Release order:
 
 1. The fix piece merges to `main` (or this branch merges as built and the fixes follow; either way `rc.1` names a merged `main`).
 2. The release pull request writes the date and the `kit/` tree into the entry; `v1.2.0-rc.1` is tagged on its merge commit.
