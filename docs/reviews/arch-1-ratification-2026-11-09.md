@@ -57,7 +57,7 @@ Most severe first. None is critical or high.
 
 ## 4. Document amendments on `os-arch`
 
-All committed as one commit with the worktree's identity.
+Committed on `os-arch` with the worktree's identity (065283d and d0fd81c).
 
 | File | Section | What changed | Why |
 |---|---|---|---|
