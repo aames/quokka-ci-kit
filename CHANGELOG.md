@@ -2,6 +2,28 @@
 
 One entry per release, newest first. Each entry gives the tag, the date, whether it changes keys (every release does: `ci/kit` is in the key of every job that runs through the test script, so a kit change re-tests each of those jobs once; see [kit/README.md](kit/README.md) §5.4), the hash of the `kit/` tree the tag contains (`git rev-parse <tag>^{commit}:kit`), and what adopters need to do, in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means adopters have to act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A bump of the base image's digest is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, which is the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet, and nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag points at that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
 
+## v1.2.1 (2026-11-10)
+
+- PATCH: the documents rewritten in plain English (pull request #11). Inside
+  `kit/`: `kit/README.md` and `kit/templates/agents/section.md` are reworded,
+  so the section `kit-init` writes into an adopter's `AGENTS.md` and
+  `CLAUDE.md` now says "the one test script, with a section for each job"
+  where it said "each job's one verdict script, with one arm per job", and
+  "alongside the branch" where it said "beside"; one expected string in
+  `kit/tests/fam/init.sh` follows it; a comment in `kit/tests/plants` no longer
+  cites a removed file. No command, directive, sentence a program prints or
+  decision changes.
+- Outside `kit/`: README, QUICKSTART, DESIGN.md, CONTRIBUTING (with a new "How
+  we write" section), SECURITY, docs/kit-init.md (restructured as a plain
+  description), the agent guide and the skill, all in the same voice; the
+  internal review records under `docs/reviews/` are removed.
+- Changes keys: yes (every key that includes `ci/kit`).
+- The `kit/` tree this tag contains: `abf83004701c4b733e8e2da669eadb88a318efb9`
+- What adopters do: re-vendor with `kit-update v1.2.1`; nothing else. The
+  generator never rewrites a file it wrote earlier, so an `AGENTS.md` or
+  `CLAUDE.md` written by an earlier release keeps the old wording unless you
+  change the two bullets by hand.
+
 ## v1.2.0 (2026-11-10)
 
 - The platform release. Its `kit/` tree is `v1.2.0-rc.1`'s, unchanged. The

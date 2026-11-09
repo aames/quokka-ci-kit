@@ -23,7 +23,7 @@ git config commit.gpgsign true
 On `main`, with a clean working tree, put the release signer's line from [README.md](README.md#releases-and-the-release-signer) into `ci/KIT-SIGNERS` (create the `ci` directory if it doesn't exist), then:
 
 ```sh
-bash ../quokka-ci-kit/kit/bin/kit-update v1.2.0
+bash ../quokka-ci-kit/kit/bin/kit-update v1.2.1
 git switch -c adopt-kit
 ```
 
@@ -85,11 +85,11 @@ The template copies the files on `main` and nothing else: no records, no tags. G
 
 ## 2. Check that the vendored kit is the real release (2 minutes)
 
-`ci/kit/` came with the template. Confirm that it is release `v1.2.0`, signed by the key published in [README.md](README.md#releases-and-the-release-signer):
+`ci/kit/` came with the template. Confirm that it is release `v1.2.1`, signed by the key published in [README.md](README.md#releases-and-the-release-signer):
 
 ```sh
 cut -d' ' -f3- ci/KIT-SIGNERS | ssh-keygen -lf -
-diff <(bash ci/kit/bin/kit-update --verify-only v1.2.0 | head -n 4) <(head -n 4 ci/KIT-VERSION)
+diff <(bash ci/kit/bin/kit-update --verify-only v1.2.1 | head -n 4) <(head -n 4 ci/KIT-VERSION)
 ```
 
 *Done when* the fingerprint reads `SHA256:Vwu8G5Eeo+oc6eRSJtjpGFVVMmUfMNrYpVMR0CfDjX8` and `diff` prints nothing. If either differs, stop. Leave `ci/KIT-SIGNERS` exactly as it is: it says who may sign a kit release, not who may vouch for your tests.
