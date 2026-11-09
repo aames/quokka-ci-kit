@@ -75,9 +75,11 @@ kit_env_reserved() {
 # lower-cased, x86_64 read as amd64 and aarch64 as arm64 (DESIGN.md 6.5's
 # `platform` row). The ONE computer of the string: the driver, the launcher
 # and the record writer all call it, so a local record's platform and a CI
-# record's cannot be spelled two ways.
+# record's cannot be spelled two ways. An empty word is refused: status 1 and
+# nothing printed, so no caller can write `platform /`.
 kit_platform_of() {
   local os="${1:-}" arch="${2:-}"
+  [ -n "$os" ] && [ -n "$arch" ] || return 1
   case "$os" in
     Linux) os=linux ;;
     Darwin) os=darwin ;;

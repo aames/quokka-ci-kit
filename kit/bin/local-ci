@@ -553,7 +553,8 @@ cmd_run() {
     linux/*) ;;
     *) refuse "The job image runs on ${container_platform}, not Linux, so ${jobs[*]} did not run." ;;
   esac
-  host_platform="$(platform_of "$(uname -s)" "$(uname -m)")"
+  host_platform="$(platform_of "$(uname -s)" "$(uname -m)")" || host_platform=""
+  [ -n "$host_platform" ] || refuse "This computer did not say its platform, so ${jobs[*]} did not run."
   docker_version="$(docker version --format '{{.Server.Version}}' 2> /dev/null)" || docker_version=""
   [ -n "$docker_version" ] || docker_version=unknown
 

@@ -88,7 +88,11 @@ fi
 one_word() { # one_word <value>: the value when it is one word, else `unknown`
   if [[ "${1:-}" =~ ^[^[:space:]]+$ ]]; then printf '%s' "$1"; else printf unknown; fi
 }
-host="$(platform_of "$(uname -s)" "$(uname -m)")"
+host="$(platform_of "$(uname -s)" "$(uname -m)")" || host=""
+if [ -z "$host" ]; then
+  echo "::error::this runner did not say its platform, so no record was written."
+  exit 2
+fi
 
 # Where the verdict ran. A `local` job ran in its image, and the launcher said
 # where in the ran file; any other job ran here.
