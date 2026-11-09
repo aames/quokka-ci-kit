@@ -2,6 +2,23 @@
 
 One entry per release, newest first. Each entry names the tag, the date, whether it moves keys (every release does: `ci/kit` is in the key of every adapter-run job, so a kit change re-tests every such job once; see [kit/README.md](kit/README.md) §5.4), the `kit/` tree the tag names (`git rev-parse <tag>^{commit}:kit`), and the adopter's actions in one list. Versions follow [kit/README.md](kit/README.md) §5.1: MAJOR means the adopter must act; MINOR adds an optional directive, kind or scanner; PATCH is a fix that changes no interface. A base image digest bump is a PATCH release with a line here saying so. A release is a signed, annotated tag whose message's first line is `quokka-ci-kit <tag>`, the form `kit-update` accepts. An entry headed `(unreleased)` is not a release yet: nothing can be vendored from it. The release pull request replaces that word with the date and writes the `kit/` tree hash into the entry, and the tag names that pull request's merge commit, so the entry in the tagged commit carries the hash ([CONTRIBUTING.md](CONTRIBUTING.md), "How a release is cut").
 
+## v1.2.0 (2026-11-10)
+
+- The platform release. Its `kit/` tree is `v1.2.0-rc.1`'s, unchanged: the
+  example repository vendored the candidate and ran it, every job ran in CI
+  and wrote its green record in the new shape (a tag object named
+  `ci/green/<job>/<key>`, which GitHub accepted and stamped with its own
+  tagger, its facts reading `platform linux/amd64`), and a second push with
+  nothing under any key changed skipped all three jobs on those records. The
+  candidate's one open fact is closed by that run.
+- Moves keys: no change from `v1.2.0-rc.1` (the same tree); yes from `v1.1.0`
+  (every adapter-run key moves with `ci/kit`).
+- The `kit/` tree this tag names: `f9b648a78fb85390babef3559e3811b8776e3106`
+- Adopter's actions: re-vendor with `kit-update v1.2.0` (from `v1.2.0-rc.1`,
+  only `ci/KIT-VERSION` changes; from `v1.1.0`, nothing beyond the re-vendor).
+  One check: `<job>_platform` is now a kit output name, so a plan extension
+  that writes one fails the plan, naming it; rename yours if you have one.
+
 ## v1.2.0-rc.1 (2026-11-10)
 
 - MINOR: every record names the platform (os/arch) its verdict ran on, and the
