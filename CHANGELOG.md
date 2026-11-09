@@ -6,8 +6,9 @@ One entry per release, newest first. Each entry names the tag, the date, whether
 
 - MINOR: every record names the platform (os/arch) its verdict ran on, and the
   plan shows it. The manifest format, the adapter contract, the key formula and
-  the plan's sentences are unchanged; a trusted record's sentence gains the
-  platform as a last clause.
+  every decision are unchanged: each record an earlier release wrote is decided
+  as before. The plan gains a `Platform` column, a `<job>_platform` output and a
+  last clause on a trusted record's note, all additive (kit/README.md §5.1).
 - New: a CI green record is an unsigned tag object of the tested commit whose
   message is a facts block (`<project>-green v1`: job, key, commit, platform,
   host, image, run, workflow_ref), with `refs/ci/green/<job>/<key>` naming the
@@ -26,6 +27,9 @@ One entry per release, newest first. Each entry names the tag, the date, whether
   cannot write.
 - New: `kit_platform_of` in `lib/keys.sh`, the one computer of the platform
   string, called by `local-ci`, `container` and `record`.
+- Changed: in the note of a green record that is a tag object, `<sha12>` names
+  the tag object, as it always has for a local record; a lightweight record's
+  note still names its commit.
 - Changed: `local-ci sign` and `push` name the record's platform in their
   lines. The local facts block and its format line are unchanged, so every
   local record written by an earlier release stays valid.
@@ -34,7 +38,13 @@ One entry per release, newest first. Each entry names the tag, the date, whether
 - Moves keys: yes (every adapter-run key moves with `ci/kit`).
 - The `kit/` tree this tag names: (written by the release pull request)
 - Adopter's actions: none; the workflow's record step is unchanged, and
-  records written by earlier releases stay trusted.
+  records written by earlier releases stay trusted. One check: `<job>_platform`
+  is now the kit's output name for every job your manifest declares, so a plan
+  extension that writes one fails the plan, naming it; rename yours if you have
+  one.
+- To be proven live by this candidate: GitHub accepting a tag object named
+  `ci/green/<job>/<key>` from the job token. The first write is the example's
+  run of this candidate; `v1.2.0` is cut only after that run is green.
 
 ## v1.1.0 (2026-11-03)
 
