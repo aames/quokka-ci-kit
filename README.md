@@ -159,7 +159,7 @@ Your workstation pays instead: a cold job image build (several minutes, once per
 
 ## Releases and the release signer
 
-The current release is `v1.1.0`. A release is a signed, annotated tag on this repository's protected `main` whose message's first line is `quokka-ci-kit <tag>` ([CONTRIBUTING.md](CONTRIBUTING.md) has how one is cut), and its [CHANGELOG.md](CHANGELOG.md) entry names the `kit/` tree it vendors.
+The current release is `v1.2.0`. A release is a signed, annotated tag on this repository's protected `main` whose message's first line is `quokka-ci-kit <tag>` ([CONTRIBUTING.md](CONTRIBUTING.md) has how one is cut), and its [CHANGELOG.md](CHANGELOG.md) entry names the `kit/` tree it vendors.
 
 The release signer's line for your `ci/KIT-SIGNERS`, in OpenSSH allowed-signers format:
 
